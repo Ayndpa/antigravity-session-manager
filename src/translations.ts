@@ -1,37 +1,6 @@
 export const translations = {
   en: {
-    // Admin Panel / Sidebar
-    adminPanel: "Admin Panel",
-    systemHealth: "System Health",
-    securityPolicies: "Security Policies",
-    systemConfigJson: "System config.json",
-    mcpServers: "MCP servers",
-    rootOperatorContext: "Root Operator Context",
-    
-    // Live Monitor
-    liveSystemHealthMonitor: "LIVE SYSTEM HEALTH MONITOR",
-    permissionsAuditSecurityPolicies: "PERMISSIONS AUDIT & SECURITY POLICIES",
-    systemConfigEditor: "SYSTEM CONFIGURATION EDITOR (config.json)",
-    mcpServersConnections: "MCP SERVERS CONNECTIONS (mcp_config.json)",
-    refreshInfo: "Refresh Info",
-    connectingToDaemon: "Connecting to hypervisor daemon...",
-    operatingSystem: "Operating System",
-    physicalMemoryUsage: "Physical Memory Usage",
-    storagePartitionLayout: "Storage Partition Layout",
-    topHostProcessThreads: "Top Host Process Threads (CPU Focus)",
-    sandboxBoundaries: "Sandbox Sandbox Boundaries & Policies",
-    resourceNamespace: "Resource Namespace",
-    localDiskPathCommandPrefix: "Local Disk Path / Command Prefix",
-    sandboxSecurityState: "Sandbox Security State",
-    configJsonPayload: "Configuration Json Payload (config.json)",
-    applyConfigSettings: "Apply Config Settings",
-    mcpProtocolConfigPayload: "MCP Protocol Config Payload (mcp_config.json)",
-    applyMcpConfigurations: "Apply MCP Configurations",
-    writingChanges: "Writing changes...",
-    configAppliedSuccess: "System config.json applied successfully!",
-    mcpAppliedSuccess: "mcp_config.json applied successfully!",
-    invalidJsonFormat: "Invalid JSON format or write error: ",
-    adminQueryError: "Admin query error: ",
+
     
     // User Space
     projects: "Projects",
@@ -106,14 +75,12 @@ export const translations = {
     addProject: "Add Project",
     noProjectsLoaded: "No projects loaded. Add one to start.",
     closeManager: "Close Manager",
-    closeWindow: "Close Window",
     back: "Back",
     
     // Confirm Dialogs & General Alerts
     confirmDeleteConversation: "Are you sure you want to delete this conversation? This will delete the SQLite database and all local execution brain folders.",
     confirmDeleteConversationsBatch: "Are you sure you want to delete the {count} selected conversations? This action is irreversible.",
     confirmDeleteProject: "Delete this project from manager? The underlying git directory will NOT be modified, but its session bindings will disappear.",
-    failedSpawnAdmin: "Failed to spawn admin console: ",
     errorLoadingConversation: "Error loading conversation: ",
     failedDeleteConversation: "Failed to delete conversation: ",
     failedBatchDelete: "Failed to batch delete conversations: ",
@@ -121,38 +88,7 @@ export const translations = {
     failedDeleteProject: "Failed to delete project: "
   },
   zh: {
-    // Admin Panel / Sidebar
-    adminPanel: "管理面板",
-    systemHealth: "系统健康",
-    securityPolicies: "安全策略",
-    systemConfigJson: "系统 config.json",
-    mcpServers: "MCP 服务器",
-    rootOperatorContext: "Root 操作员上下文",
-    
-    // Live Monitor
-    liveSystemHealthMonitor: "系统健康实时监控",
-    permissionsAuditSecurityPolicies: "权限审计与安全策略",
-    systemConfigEditor: "系统配置编辑器 (config.json)",
-    mcpServersConnections: "MCP 服务器连接 (mcp_config.json)",
-    refreshInfo: "刷新信息",
-    connectingToDaemon: "正在连接监控守护进程...",
-    operatingSystem: "操作系统",
-    physicalMemoryUsage: "物理内存使用率",
-    storagePartitionLayout: "存储分区布局",
-    topHostProcessThreads: "主要主机进程线程 (CPU关注)",
-    sandboxBoundaries: "沙箱边界与安全策略",
-    resourceNamespace: "资源命名空间",
-    localDiskPathCommandPrefix: "本地磁盘路径 / 命令前缀",
-    sandboxSecurityState: "沙箱安全状态",
-    configJsonPayload: "配置 JSON 载荷 (config.json)",
-    applyConfigSettings: "应用配置设置",
-    mcpProtocolConfigPayload: "MCP 协议配置载荷 (mcp_config.json)",
-    applyMcpConfigurations: "应用 MCP 配置",
-    writingChanges: "正在写入修改...",
-    configAppliedSuccess: "系统 config.json 应用成功！",
-    mcpAppliedSuccess: "mcp_config.json 应用成功！",
-    invalidJsonFormat: "无效的 JSON 格式或写入错误: ",
-    adminQueryError: "管理员查询错误: ",
+
     
     // User Space
     projects: "项目",
@@ -227,14 +163,12 @@ export const translations = {
     addProject: "添加项目",
     noProjectsLoaded: "未加载项目。请添加一个开始。",
     closeManager: "关闭管理器",
-    closeWindow: "关闭窗口",
     back: "返回",
     
     // Confirm Dialogs & General Alerts
     confirmDeleteConversation: "您确定要删除此会话吗？这将删除 SQLite 数据库和所有本地执行大脑文件夹。",
     confirmDeleteConversationsBatch: "您确定要删除所选的 {count} 个会话吗？此操作不可逆。",
     confirmDeleteProject: "从管理器中删除此项目？底层 git 目录不会被修改，但其会话绑定将消失。",
-    failedSpawnAdmin: "无法启动管理控制台: ",
     errorLoadingConversation: "加载会话错误: ",
     failedDeleteConversation: "删除会话失败: ",
     failedBatchDelete: "批量删除会话失败: ",

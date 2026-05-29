@@ -1121,16 +1121,7 @@ body {
   gap: 24px;
 }
 
-/* OS & Memory Admin Panel Wrap styling */
-.admin-flex-row {
-  display: flex;
-  gap: 20px;
-  flex-wrap: wrap;
-  width: 100%;
-}
-.admin-flex-row > * {
-  flex: 1 1 280px;
-}
+
 
 
 .chart-card {

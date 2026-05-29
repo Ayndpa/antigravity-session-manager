@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+
 import { marked } from "marked";
 import "./App.css";
 import { translations, TranslationKey } from "./translations";
@@ -59,18 +59,7 @@ interface AuditStats {
   average_steps_per_conversation: number;
 }
 
-interface SecurityPolicy {
-  name: string;
-  path: string;
-  permission: string;
-}
 
-interface SystemInfo {
-  disk: Array<{ Name: string; Used: number; Free: number }> | null;
-  memory: { FreePhysicalMemory: number; TotalVisibleMemorySize: number } | null;
-  processes: Array<{ ProcessName: string; CPU: number; WorkingSet: number }> | null;
-  os: { Caption: string; Version: string; OSArchitecture: string } | null;
-}
 
 // Inline SVG Icons
 const IconSearch = () => (
@@ -119,9 +108,7 @@ const IconChevronRight = () => (
 
 
 function App() {
-  // Determine if this window is the admin console
-  const [isAdminConsole, setIsAdminConsole] = useState(false);
-  const [adminTab, setAdminTab] = useState<"system" | "audit" | "config" | "mcp">("system");
+
 
   // Collapsible sidebar state
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -153,11 +140,7 @@ function App() {
   const [conversations, setConversations] = useState<ConversationMetadata[]>([]);
   const [auditStats, setAuditStats] = useState<AuditStats | null>(null);
 
-  // Admin Space Lists
-  const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
-  const [securityPolicies, setSecurityPolicies] = useState<SecurityPolicy[]>([]);
-  const [adminConfigText, setAdminConfigText] = useState("");
-  const [mcpConfigText, setMcpConfigText] = useState("");
+
 
   // Selections
   const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
@@ -168,7 +151,7 @@ function App() {
   // Loading States
   const [loading, setLoading] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
-  const [adminActionLoading, setAdminActionLoading] = useState(false);
+
 
   // Filters & Search
   const [searchTerm, setSearchTerm] = useState("");
@@ -185,33 +168,10 @@ function App() {
   const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Detect admin context & fetch initial data
+  // Fetch initial data
   useEffect(() => {
-    detectContext();
-  }, []);
-
-  const detectContext = async () => {
-    try {
-      const win = getCurrentWindow();
-      if (win.label === "admin_console") {
-        setIsAdminConsole(true);
-      } else {
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get("role") === "admin") {
-          setIsAdminConsole(true);
-        }
-      }
-    } catch (e) {
-      console.warn("Failed to read window label, fallback to user space:", e);
-    }
     loadData();
-  };
-
-  useEffect(() => {
-    if (isAdminConsole) {
-      loadAdminData();
-    }
-  }, [isAdminConsole, adminTab]);
+  }, []);
 
   const loadData = async () => {
     setLoading(true);
@@ -225,30 +185,6 @@ function App() {
       setAuditStats(stats);
     } catch (e) {
       console.error("Failed to load user space data:", e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadAdminData = async () => {
-    setLoading(true);
-    try {
-      if (adminTab === "system") {
-        const info = await invoke<SystemInfo>("get_system_info");
-        setSystemInfo(info);
-      } else if (adminTab === "audit") {
-        const policies = await invoke<SecurityPolicy[]>("get_security_audit");
-        setSecurityPolicies(policies);
-      } else if (adminTab === "config") {
-        const config = await invoke<any>("get_admin_config");
-        setAdminConfigText(JSON.stringify(config, null, 2));
-      } else if (adminTab === "mcp") {
-        const config = await invoke<any>("get_mcp_config");
-        setMcpConfigText(JSON.stringify(config, null, 2));
-      }
-    } catch (e) {
-      console.error("Failed to load admin console data:", e);
-      alert(t("adminQueryError") + e);
     } finally {
       setLoading(false);
     }
@@ -377,32 +313,7 @@ function App() {
     }
   };
 
-  // Admin Config Actions
-  const handleApplyConfig = async () => {
-    try {
-      const json = JSON.parse(adminConfigText);
-      setAdminActionLoading(true);
-      await invoke("save_admin_config", { content: json });
-      alert(t("configAppliedSuccess"));
-    } catch (e) {
-      alert(t("invalidJsonFormat") + e);
-    } finally {
-      setAdminActionLoading(false);
-    }
-  };
 
-  const handleApplyMcpConfig = async () => {
-    try {
-      const json = JSON.parse(mcpConfigText);
-      setAdminActionLoading(true);
-      await invoke("save_mcp_config", { content: json });
-      alert(t("mcpAppliedSuccess"));
-    } catch (e) {
-      alert(t("invalidJsonFormat") + e);
-    } finally {
-      setAdminActionLoading(false);
-    }
-  };
 
   // Trigger project edit
   const startEditProject = (proj: Project) => {
@@ -481,303 +392,7 @@ function App() {
     }
   };
 
-  /* ================= ADMIN CONSOLE WINDOW LAYOUT ================= */
-  if (isAdminConsole) {
-    return (
-      <div className="app-container">
-        {/* Sidebar Nav */}
-        <aside className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`} style={sidebarCollapsed ? { width: 0, minWidth: 0, borderRight: "none" } : { width: "240px", minWidth: "240px" }}>
-          <div className="sidebar-header">
-            <div className="brand-section" style={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "center" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <img src="/logo.png" className="brand-logo" alt="Logo" style={{ width: "24px", height: "24px", objectFit: "contain" }} />
-                <h1 className="brand-name" style={{ fontSize: "14px" }}>{t("adminPanel")}</h1>
-              </div>
-              <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                <button
-                  className="toggle-sidebar-btn"
-                  style={{ width: "auto", padding: "0 8px", fontSize: "11px", height: "28px" }}
-                  onClick={() => setLang(lang === "en" ? "zh" : "en")}
-                  title={lang === "en" ? "切换为中文" : "Switch to English"}
-                >
-                  🌐 {lang === "en" ? "ZH" : "EN"}
-                </button>
-                <button className="toggle-sidebar-btn" style={{ width: "28px", height: "28px" }} onClick={() => setSidebarCollapsed(true)} title="Collapse Sidebar">
-                  <IconChevronLeft />
-                </button>
-              </div>
-            </div>
-          </div>
 
-          <div className="conversation-list-container" style={{ padding: "10px" }}>
-            <button
-              className={`sidebar-btn ${adminTab === "system" ? "active" : ""}`}
-              onClick={() => setAdminTab("system")}
-              style={{ width: "100%", justifyContent: "flex-start", marginBottom: "8px", background: adminTab === "system" ? "rgba(0, 242, 254, 0.08)" : "" }}
-            >
-              📊 {t("systemHealth")}
-            </button>
-            <button
-              className={`sidebar-btn ${adminTab === "audit" ? "active" : ""}`}
-              onClick={() => setAdminTab("audit")}
-              style={{ width: "100%", justifyContent: "flex-start", marginBottom: "8px", background: adminTab === "audit" ? "rgba(0, 242, 254, 0.08)" : "" }}
-            >
-              🛡️ {t("securityPolicies")}
-            </button>
-            <button
-              className={`sidebar-btn ${adminTab === "config" ? "active" : ""}`}
-              onClick={() => setAdminTab("config")}
-              style={{ width: "100%", justifyContent: "flex-start", marginBottom: "8px", background: adminTab === "config" ? "rgba(0, 242, 254, 0.08)" : "" }}
-            >
-              ⚙️ {t("systemConfigJson")}
-            </button>
-            <button
-              className={`sidebar-btn ${adminTab === "mcp" ? "active" : ""}`}
-              onClick={() => setAdminTab("mcp")}
-              style={{ width: "100%", justifyContent: "flex-start", marginBottom: "8px", background: adminTab === "mcp" ? "rgba(0, 242, 254, 0.08)" : "" }}
-            >
-              🔌 {t("mcpServers")}
-            </button>
-          </div>
-          <div style={{ padding: "15px", borderTop: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: "10px", alignItems: "center" }}>
-            <button
-              className="sidebar-btn"
-              onClick={async () => {
-                try {
-                  const win = getCurrentWindow();
-                  await win.close();
-                } catch (e) {
-                  console.error("Failed to close window:", e);
-                }
-              }}
-              style={{ width: "100%", borderColor: "var(--neon-pink)", color: "var(--neon-pink)" }}
-            >
-              🚪 {t("closeWindow")}
-            </button>
-            <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>
-              {t("rootOperatorContext")}
-            </span>
-          </div>
-        </aside>
-
-        {/* Content Pane */}
-        <main className="main-content" style={{ padding: "40px", overflowY: "auto" }}>
-          <div className="audit-header" style={{ marginBottom: "30px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              {sidebarCollapsed && (
-                <button className="toggle-sidebar-btn" onClick={() => setSidebarCollapsed(false)} title="Show Sidebar">
-                  <IconChevronRight />
-                </button>
-              )}
-              <h2 className="audit-title">
-                {adminTab === "system" && t("liveSystemHealthMonitor")}
-                {adminTab === "audit" && t("permissionsAuditSecurityPolicies")}
-                {adminTab === "config" && t("systemConfigEditor")}
-                {adminTab === "mcp" && t("mcpServersConnections")}
-              </h2>
-            </div>
-            <button className="btn-primary" onClick={loadAdminData}>
-              <IconRefresh /> {t("refreshInfo")}
-            </button>
-          </div>
-
-
-          {loading ? (
-            <div className="loading-wrapper">
-              <div className="spinner"></div>
-              <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{t("connectingToDaemon")}</div>
-            </div>
-          ) : (
-            <>
-              {/* Tab 1: System Health */}
-              {adminTab === "system" && systemInfo && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-                  {/* OS & Memory Cards */}
-                  <div className="admin-flex-row">
-                    <div className="audit-stat-card">
-
-                      <span className="audit-stat-label">{t("operatingSystem")}</span>
-                      <span className="audit-stat-value" style={{ fontSize: "18px", marginTop: "8px" }}>
-                        {systemInfo.os?.Caption || "Microsoft Windows"}
-                      </span>
-                      <span style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>
-                        Kernel: {systemInfo.os?.Version || "N/A"} ({systemInfo.os?.OSArchitecture || "64-bit"})
-                      </span>
-                    </div>
-
-                    <div className="audit-stat-card purple">
-                      <span className="audit-stat-label">{t("physicalMemoryUsage")}</span>
-                      {systemInfo.memory ? (() => {
-                        const total = systemInfo.memory.TotalVisibleMemorySize;
-                        const free = systemInfo.memory.FreePhysicalMemory;
-                        const used = total - free;
-                        const pct = (used / total) * 100;
-                        return (
-                          <>
-                            <span className="audit-stat-value" style={{ fontSize: "20px", marginTop: "8px" }}>
-                              {pct.toFixed(1)}% <span style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: "500" }}>({(used / 1024 / 1024).toFixed(1)} GB / {(total / 1024 / 1024).toFixed(1)} GB)</span>
-                            </span>
-                            <div style={{ width: "100%", height: "6px", background: "#131836", borderRadius: "3px", marginTop: "10px", overflow: "hidden" }}>
-                              <div style={{ width: `${pct}%`, height: "100%", background: "var(--neon-purple)", borderRadius: "3px", boxShadow: "0 0 8px var(--neon-purple)" }}></div>
-                            </div>
-                          </>
-                        );
-                      })() : (
-                        <span className="audit-stat-value">N/A</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Disk and Processes Row */}
-                  <div className="charts-row">
-                    {/* Disks */}
-                    <div className="chart-card" style={{ height: "auto" }}>
-                      <h3 className="chart-card-title">{t("storagePartitionLayout")}</h3>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "10px" }}>
-                        {systemInfo.disk ? systemInfo.disk.map((d) => {
-                          const pct = (d.Used / (d.Used + d.Free)) * 100;
-                          return (
-                            <div key={d.Name} style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
-                                <span style={{ fontWeight: "700" }}>Partition {d.Name}:</span>
-                                <span style={{ color: "var(--text-muted)" }}>
-                                  {formatBytes(d.Used)} used / {formatBytes(d.Free)} free
-                                </span>
-                              </div>
-                              <div style={{ width: "100%", height: "8px", background: "#03050a", borderRadius: "4px", overflow: "hidden" }}>
-                                <div style={{ width: `${pct}%`, height: "100%", background: "var(--neon-cyan)", borderRadius: "4px", boxShadow: "var(--shadow-neon)" }}></div>
-                              </div>
-                            </div>
-                          );
-                        }) : (
-                          <div className="empty-state">{t("noStatisticsLoaded")}</div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Processes */}
-                    <div className="chart-card" style={{ height: "auto" }}>
-                      <h3 className="chart-card-title">{t("topHostProcessThreads")}</h3>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "5px" }}>
-                        {systemInfo.processes ? systemInfo.processes.map((p, idx) => (
-                          <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", borderBottom: "0.5px solid rgba(255,255,255,0.02)", paddingBottom: "6px" }}>
-                            <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-main)" }}>
-                              {p.ProcessName}
-                            </span>
-                            <div style={{ display: "flex", gap: "15px" }}>
-                              <span style={{ color: "var(--neon-pink)" }}>CPU: {p.CPU.toFixed(1)}s</span>
-                              <span style={{ color: "var(--text-muted)" }}>RAM: {formatBytes(p.WorkingSet)}</span>
-                            </div>
-                          </div>
-                        )) : (
-                          <div className="empty-state">{t("noStatisticsLoaded")}</div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Tab 2: Security Policies */}
-              {adminTab === "audit" && (
-                <div className="chart-card" style={{ height: "auto" }}>
-                  <h3 className="chart-card-title">{t("sandboxBoundaries")}</h3>
-                  <div style={{ overflowX: "auto", marginTop: "10px" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "left" }}>
-                      <thead>
-                        <tr style={{ borderBottom: "1px solid var(--border-color)", color: "var(--text-muted)" }}>
-                          <th style={{ padding: "12px" }}>{t("resourceNamespace")}</th>
-                          <th style={{ padding: "12px" }}>{t("localDiskPathCommandPrefix")}</th>
-                          <th style={{ padding: "12px", textAlign: "center" }}>{t("sandboxSecurityState")}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {securityPolicies.map((pol, idx) => {
-                          const isDenied = pol.permission.includes("Denied");
-                          const isAsk = pol.permission.includes("Ask");
-                          const labelColor = isDenied
-                            ? "var(--neon-pink)"
-                            : isAsk
-                            ? "var(--neon-purple)"
-                            : "#00ff7f";
-                          const labelBg = isDenied
-                            ? "rgba(255, 0, 127, 0.1)"
-                            : isAsk
-                            ? "rgba(155, 81, 224, 0.1)"
-                            : "rgba(0, 255, 127, 0.1)";
-
-                          return (
-                            <tr key={idx} style={{ borderBottom: "1.5px solid rgba(255,255,255,0.02)" }}>
-                              <td style={{ padding: "12px", fontWeight: "700" }}>{pol.name}</td>
-                              <td style={{ padding: "12px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>{pol.path}</td>
-                              <td style={{ padding: "12px", textAlign: "center" }}>
-                                <span style={{
-                                  background: labelBg,
-                                  color: labelColor,
-                                  border: `0.5px solid ${labelColor}`,
-                                  padding: "3px 8px",
-                                  borderRadius: "4px",
-                                  fontSize: "10px",
-                                  fontWeight: "800",
-                                  textTransform: "uppercase"
-                                }}>
-                                  {pol.permission}
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* Tab 3: config.json Editor */}
-              {adminTab === "config" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
-                  <div className="form-group">
-                    <label className="form-label">{t("configJsonPayload")}</label>
-                    <textarea
-                      className="form-input"
-                      style={{ height: "350px", fontFamily: "var(--font-mono)", fontSize: "12px", lineHeight: "1.5", resize: "none" }}
-                      value={adminConfigText}
-                      onChange={(e) => setAdminConfigText(e.target.value)}
-                    />
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                    <button className="btn-primary" onClick={handleApplyConfig} disabled={adminActionLoading}>
-                      {adminActionLoading ? t("writingChanges") : t("applyConfigSettings")}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Tab 4: mcp_config.json Editor */}
-              {adminTab === "mcp" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
-                  <div className="form-group">
-                    <label className="form-label">{t("mcpProtocolConfigPayload")}</label>
-                    <textarea
-                      className="form-input"
-                      style={{ height: "350px", fontFamily: "var(--font-mono)", fontSize: "12px", lineHeight: "1.5", resize: "none" }}
-                      value={mcpConfigText}
-                      onChange={(e) => setMcpConfigText(e.target.value)}
-                    />
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                    <button className="btn-primary" onClick={handleApplyMcpConfig} disabled={adminActionLoading}>
-                      {adminActionLoading ? t("writingChanges") : t("applyMcpConfigurations")}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </main>
-      </div>
-    );
-  }
 
   /* ================= USER SPACE WINDOW LAYOUT ================= */
   return (
@@ -812,19 +427,7 @@ function App() {
             <button className="sidebar-btn" onClick={() => setShowAuditView(!showAuditView)}>
               <IconChart /> {showAuditView ? t("sessions") : t("audit")}
             </button>
-            <button
-              className="sidebar-btn"
-              onClick={async () => {
-                try {
-                  await invoke("open_admin_window");
-                } catch (e) {
-                  alert(t("failedSpawnAdmin") + e);
-                }
-              }}
-              style={{ width: "100%", borderColor: "var(--neon-pink)", color: "var(--neon-pink)" }}
-            >
-              ⚡ {t("adminPanel")}
-            </button>
+
           </div>
         </div>
 
