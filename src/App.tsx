@@ -15,7 +15,7 @@ import { Sidebar } from "./components/Sidebar";
 import { WelcomePanel } from "./components/WelcomePanel";
 import { AuditView } from "./components/AuditView";
 import { DetailView } from "./components/DetailView";
-import { ProjectsModal } from "./components/ProjectsModal";
+import { ProjectsView } from "./components/ProjectsView";
 
 function App() {
   // Collapsible sidebar state
@@ -71,8 +71,8 @@ function App() {
   const [projectFilter, setProjectFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
 
-  // Modals
-  const [showProjectModal, setShowProjectModal] = useState(false);
+  // Views & Modals
+  const [showProjectsView, setShowProjectsView] = useState(false);
   const [showAuditView, setShowAuditView] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
@@ -141,6 +141,11 @@ function App() {
     setLoadingDetail(true);
     setActiveArtifact(null);
     setExpandedSteps(new Set([0])); // expand first step by default
+    
+    // Auto switch back to conversation view by closing special dashboard views
+    setShowAuditView(false);
+    setShowProjectsView(false);
+
     try {
       const detail = await invoke<ConversationDetail>("get_conversation_detail", {
         id,
@@ -192,6 +197,25 @@ function App() {
     } catch (e) {
       alert(t("failedBatchDelete") + e);
       setLoading(false);
+    }
+  };
+
+  // View State toggles that clear conversation selection to allow re-selection
+  const handleSetShowProjectsView = (val: boolean) => {
+    setShowProjectsView(val);
+    if (val) {
+      setShowAuditView(false);
+      setSelectedConvId(null);
+      setSelectedConvDetail(null);
+    }
+  };
+
+  const handleSetShowAuditView = (val: boolean) => {
+    setShowAuditView(val);
+    if (val) {
+      setShowProjectsView(false);
+      setSelectedConvId(null);
+      setSelectedConvDetail(null);
     }
   };
 
@@ -312,9 +336,10 @@ function App() {
         setTypeFilter={setTypeFilter}
         loading={loading}
         projectMap={projectMap}
-        setShowProjectModal={setShowProjectModal}
+        showProjectsView={showProjectsView}
+        setShowProjectsView={handleSetShowProjectsView}
         showAuditView={showAuditView}
-        setShowAuditView={setShowAuditView}
+        setShowAuditView={handleSetShowAuditView}
         deleteConversationsBatch={deleteConversationsBatch}
       />
 
@@ -329,6 +354,24 @@ function App() {
             auditStats={auditStats}
             loadData={loadData}
             projectMap={projectMap}
+          />
+        ) : showProjectsView ? (
+          /* ================= PROJECTS CONFIGURATION VIEW ================= */
+          <ProjectsView
+            sidebarCollapsed={sidebarCollapsed}
+            setSidebarCollapsed={setSidebarCollapsed}
+            t={t}
+            projects={projects}
+            editingProject={editingProject}
+            setEditingProject={setEditingProject}
+            isCreatingProject={isCreatingProject}
+            setShowProjectsView={setShowProjectsView}
+            handleSaveProject={handleSaveProject}
+            handleDeleteProject={handleDeleteProject}
+            handleDeleteProjectsBatch={handleDeleteProjectsBatch}
+            startEditProject={startEditProject}
+            startCreateProject={startCreateProject}
+            conversations={conversations}
           />
         ) : loadingDetail ? (
           <div className="loading-wrapper">
@@ -364,23 +407,6 @@ function App() {
           />
         )}
       </main>
-
-      {/* 3. PROJECTS MANAGER MODAL */}
-      {showProjectModal && (
-        <ProjectsModal
-          t={t}
-          projects={projects}
-          editingProject={editingProject}
-          setEditingProject={setEditingProject}
-          isCreatingProject={isCreatingProject}
-          setShowProjectModal={setShowProjectModal}
-          handleSaveProject={handleSaveProject}
-          handleDeleteProject={handleDeleteProject}
-          handleDeleteProjectsBatch={handleDeleteProjectsBatch}
-          startEditProject={startEditProject}
-          startCreateProject={startCreateProject}
-        />
-      )}
     </div>
   );
 }

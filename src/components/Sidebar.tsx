@@ -30,7 +30,8 @@ interface SidebarProps {
   setTypeFilter: (filter: string) => void;
   loading: boolean;
   projectMap: Map<string, string>;
-  setShowProjectModal: (val: boolean) => void;
+  showProjectsView: boolean;
+  setShowProjectsView: (val: boolean) => void;
   showAuditView: boolean;
   setShowAuditView: (val: boolean) => void;
   deleteConversationsBatch: () => void;
@@ -56,7 +57,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setTypeFilter,
   loading,
   projectMap,
-  setShowProjectModal,
+  showProjectsView,
+  setShowProjectsView,
   showAuditView,
   setShowAuditView,
   deleteConversationsBatch,
@@ -192,14 +194,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         <div className="sidebar-controls" style={{ flexWrap: "wrap", gap: "6px" }}>
-          <button className="sidebar-btn" onClick={() => setShowProjectModal(true)}>
+          <button
+            className={`sidebar-btn ${showProjectsView ? "active" : ""}`}
+            onClick={() => {
+              const next = !showProjectsView;
+              setShowProjectsView(next);
+              if (next) {
+                setShowAuditView(false);
+              }
+            }}
+          >
             <IconFolder /> {t("projects")}
           </button>
           <button
-            className="sidebar-btn"
-            onClick={() => setShowAuditView(!showAuditView)}
+            className={`sidebar-btn ${showAuditView ? "active" : ""}`}
+            onClick={() => {
+              const next = !showAuditView;
+              setShowAuditView(next);
+              if (next) {
+                setShowProjectsView(false);
+              }
+            }}
           >
-            <IconChart /> {showAuditView ? t("sessions") : t("audit")}
+            <IconChart /> {t("audit")}
           </button>
         </div>
       </div>
