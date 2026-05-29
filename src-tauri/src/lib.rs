@@ -731,7 +731,7 @@ fn run_powershell(cmd: &str) -> String {
 }
 
 #[tauri::command]
-fn open_admin_window(app_handle: tauri::AppHandle) -> Result<(), String> {
+async fn open_admin_window(app_handle: tauri::AppHandle) -> Result<(), String> {
     let _window = tauri::WebviewWindowBuilder::new(
         &app_handle,
         "admin_console",
@@ -823,7 +823,7 @@ fn get_security_audit() -> Result<Vec<SecurityPolicy>, String> {
 }
 
 #[tauri::command]
-fn get_system_info() -> Result<serde_json::Value, String> {
+async fn get_system_info() -> Result<serde_json::Value, String> {
     let disk = run_powershell("Get-PSDrive C,E | Select-Object Name, Used, Free | ConvertTo-Json -Compress");
     let memory = run_powershell("Get-CimInstance Win32_OperatingSystem | Select-Object FreePhysicalMemory, TotalVisibleMemorySize | ConvertTo-Json -Compress");
     let processes = run_powershell("Get-Process | Sort-Object CPU -Descending | Select-Object -First 6 ProcessName, CPU, WorkingSet | ConvertTo-Json -Compress");

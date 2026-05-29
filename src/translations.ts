@@ -106,6 +106,7 @@ export const translations = {
     addProject: "Add Project",
     noProjectsLoaded: "No projects loaded. Add one to start.",
     closeManager: "Close Manager",
+    closeWindow: "Close Window",
     back: "Back",
     
     // Confirm Dialogs & General Alerts
@@ -226,6 +227,7 @@ export const translations = {
     addProject: "添加项目",
     noProjectsLoaded: "未加载项目。请添加一个开始。",
     closeManager: "关闭管理器",
+    closeWindow: "关闭窗口",
     back: "返回",
     
     // Confirm Dialogs & General Alerts

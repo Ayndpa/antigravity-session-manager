@@ -490,7 +490,7 @@ function App() {
           <div className="sidebar-header">
             <div className="brand-section" style={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "center" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <span className="brand-logo">⚡</span>
+                <img src="/logo.png" className="brand-logo" alt="Logo" style={{ width: "24px", height: "24px", objectFit: "contain" }} />
                 <h1 className="brand-name" style={{ fontSize: "14px" }}>{t("adminPanel")}</h1>
               </div>
               <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
@@ -539,8 +539,24 @@ function App() {
               🔌 {t("mcpServers")}
             </button>
           </div>
-          <div style={{ padding: "15px", borderTop: "1px solid var(--border-color)", textAlign: "center", fontSize: "10px", color: "var(--text-muted)" }}>
-            {t("rootOperatorContext")}
+          <div style={{ padding: "15px", borderTop: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: "10px", alignItems: "center" }}>
+            <button
+              className="sidebar-btn"
+              onClick={async () => {
+                try {
+                  const win = getCurrentWindow();
+                  await win.close();
+                } catch (e) {
+                  console.error("Failed to close window:", e);
+                }
+              }}
+              style={{ width: "100%", borderColor: "var(--neon-pink)", color: "var(--neon-pink)" }}
+            >
+              🚪 {t("closeWindow")}
+            </button>
+            <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>
+              {t("rootOperatorContext")}
+            </span>
           </div>
         </aside>
 
@@ -771,7 +787,7 @@ function App() {
         <div className="sidebar-header">
           <div className="brand-section" style={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "center" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <span className="brand-logo">🌌</span>
+              <img src="/logo.png" className="brand-logo" alt="Logo" style={{ width: "24px", height: "24px", objectFit: "contain" }} />
               <h1 className="brand-name">Antigravity</h1>
             </div>
             <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
@@ -1396,7 +1412,7 @@ function App() {
                 <IconChevronRight />
               </button>
             )}
-            <span className="welcome-logo">🧠</span>
+            <img src="/logo.png" className="welcome-logo" alt="Logo" style={{ width: "96px", height: "96px", objectFit: "contain" }} />
             <h2 className="welcome-title">{t("welcomeTitle")}</h2>
 
             <p className="welcome-subtitle">
