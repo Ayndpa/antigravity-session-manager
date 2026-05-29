@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Project, ConversationMetadata } from "../types";
 import { TranslationKey } from "../translations";
-import { IconClose, IconPlus, IconEdit, IconTrash, IconChevronRight } from "./Icons";
+import { IconPlus, IconEdit, IconTrash, IconChevronRight } from "./Icons";
 import "./ProjectsView.css";
 
 interface ProjectsViewProps {
@@ -12,7 +12,6 @@ interface ProjectsViewProps {
   editingProject: Project | null;
   setEditingProject: (proj: Project | null) => void;
   isCreatingProject: boolean;
-  setShowProjectsView: (val: boolean) => void;
   handleSaveProject: (e: React.FormEvent) => void;
   handleDeleteProject: (id: string) => void;
   handleDeleteProjectsBatch: (ids: string[]) => void;
@@ -29,7 +28,6 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
   editingProject,
   setEditingProject,
   isCreatingProject,
-  setShowProjectsView,
   handleSaveProject,
   handleDeleteProject,
   handleDeleteProjectsBatch,
@@ -129,16 +127,6 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
               <IconPlus /> {t("addProject")}
             </button>
           )}
-          <button
-            className="btn-secondary"
-            style={{ padding: "6px 12px" }}
-            onClick={() => {
-              setShowProjectsView(false);
-              setEditingProject(null);
-            }}
-          >
-            <IconClose /> {t("closeManager")}
-          </button>
         </div>
       </div>
 

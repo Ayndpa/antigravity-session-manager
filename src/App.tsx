@@ -365,7 +365,6 @@ function App() {
             editingProject={editingProject}
             setEditingProject={setEditingProject}
             isCreatingProject={isCreatingProject}
-            setShowProjectsView={setShowProjectsView}
             handleSaveProject={handleSaveProject}
             handleDeleteProject={handleDeleteProject}
             handleDeleteProjectsBatch={handleDeleteProjectsBatch}
