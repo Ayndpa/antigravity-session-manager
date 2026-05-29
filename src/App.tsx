@@ -220,6 +220,19 @@ function App() {
     }
   };
 
+  // Batch Delete Projects
+  const handleDeleteProjectsBatch = async (ids: string[]) => {
+    const count = ids.length;
+    if (count === 0) return;
+    if (!confirm(t("confirmDeleteProjectsBatch", { count }))) return;
+    try {
+      await invoke("delete_projects_batch", { ids });
+      await loadData();
+    } catch (e) {
+      alert(t("failedDeleteProjectsBatch") + e);
+    }
+  };
+
   // Trigger project edit
   const startEditProject = (proj: Project) => {
     setEditingProject({ ...proj });
@@ -363,6 +376,7 @@ function App() {
           setShowProjectModal={setShowProjectModal}
           handleSaveProject={handleSaveProject}
           handleDeleteProject={handleDeleteProject}
+          handleDeleteProjectsBatch={handleDeleteProjectsBatch}
           startEditProject={startEditProject}
           startCreateProject={startCreateProject}
         />

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Project } from "../types";
 import { TranslationKey } from "../translations";
 import { IconClose, IconPlus, IconEdit, IconTrash } from "./Icons";
@@ -13,6 +13,7 @@ interface ProjectsModalProps {
   setShowProjectModal: (val: boolean) => void;
   handleSaveProject: (e: React.FormEvent) => void;
   handleDeleteProject: (id: string) => void;
+  handleDeleteProjectsBatch: (ids: string[]) => void;
   startEditProject: (proj: Project) => void;
   startCreateProject: () => void;
 }
@@ -26,9 +27,73 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
   setShowProjectModal,
   handleSaveProject,
   handleDeleteProject,
+  handleDeleteProjectsBatch,
   startEditProject,
   startCreateProject,
 }) => {
+  const [batchSelectedProjectIds, setBatchSelectedProjectIds] = useState<Set<string>>(new Set());
+  const lastClickedProjectIdRef = useRef<string | null>(null);
+
+  const handleProjectClick = (e: React.MouseEvent, p: Project) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      setBatchSelectedProjectIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(p.id)) {
+          next.delete(p.id);
+        } else {
+          next.add(p.id);
+        }
+        return next;
+      });
+      lastClickedProjectIdRef.current = p.id;
+    } else if (e.shiftKey) {
+      e.preventDefault();
+      const lastId = lastClickedProjectIdRef.current;
+      const currentIdx = projects.findIndex((item) => item.id === p.id);
+      const lastIdx = lastId ? projects.findIndex((item) => item.id === lastId) : -1;
+
+      const idsInRange: string[] = [];
+      if (lastIdx !== -1 && currentIdx !== -1) {
+        const start = Math.min(lastIdx, currentIdx);
+        const end = Math.max(lastIdx, currentIdx);
+        for (let i = start; i <= end; i++) {
+          idsInRange.push(projects[i].id);
+        }
+      } else {
+        idsInRange.push(p.id);
+      }
+
+      const shouldSelect = !batchSelectedProjectIds.has(p.id);
+
+      setBatchSelectedProjectIds((prev) => {
+        const next = new Set(prev);
+        if (shouldSelect) {
+          idsInRange.forEach((id) => next.add(id));
+        } else {
+          idsInRange.forEach((id) => next.delete(id));
+        }
+        return next;
+      });
+      lastClickedProjectIdRef.current = p.id;
+    } else {
+      // Normal click: toggle selection
+      setBatchSelectedProjectIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(p.id)) {
+          next.delete(p.id);
+        } else {
+          next.add(p.id);
+        }
+        return next;
+      });
+      lastClickedProjectIdRef.current = p.id;
+    }
+  };
+
+  useEffect(() => {
+    setBatchSelectedProjectIds(new Set());
+  }, [editingProject, projects.length]);
   return (
     <div className="modal-overlay">
       <div className="modal-content">
@@ -155,6 +220,37 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
                 </button>
               </div>
 
+              {projects.length > 0 && (
+                <div className="project-batch-bar">
+                  <label className="checkbox-label" style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      className="checkbox-custom"
+                      checked={
+                        projects.length > 0 &&
+                        projects.every((p) => batchSelectedProjectIds.has(p.id))
+                      }
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setBatchSelectedProjectIds(new Set(projects.map((p) => p.id)));
+                        } else {
+                          setBatchSelectedProjectIds(new Set());
+                        }
+                      }}
+                    />
+                    {t("selectAll")}
+                  </label>
+                  {batchSelectedProjectIds.size > 0 && (
+                    <button
+                      className="btn-danger-sm"
+                      onClick={() => handleDeleteProjectsBatch(Array.from(batchSelectedProjectIds))}
+                    >
+                      {t("deleteSelected", { count: batchSelectedProjectIds.size })}
+                    </button>
+                  )}
+                </div>
+              )}
+
               {projects.length === 0 ? (
                 <div className="empty-state">{t("noProjectsLoaded")}</div>
               ) : (
@@ -165,11 +261,22 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
                       "No folder";
                     return (
                       <div className="project-row-card" key={p.id}>
-                        <div className="project-card-info">
-                          <span className="project-card-name">{p.name}</span>
-                          <span className="project-card-path">
-                            {decodeURIComponent(uri)}
-                          </span>
+                        <div
+                          style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1, minWidth: 0, cursor: "pointer" }}
+                          onClick={(e) => handleProjectClick(e, p)}
+                        >
+                          <input
+                            type="checkbox"
+                            className="checkbox-custom project-item-checkbox"
+                            checked={batchSelectedProjectIds.has(p.id)}
+                            readOnly
+                          />
+                          <div className="project-card-info" style={{ flex: 1, minWidth: 0 }}>
+                            <span className="project-card-name">{p.name}</span>
+                            <span className="project-card-path">
+                              {decodeURIComponent(uri)}
+                            </span>
+                          </div>
                         </div>
                         <div className="project-card-actions">
                           <button

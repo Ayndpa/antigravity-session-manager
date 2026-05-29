@@ -248,6 +248,8 @@
   cursor: pointer;
   transition: all 0.25s;
   gap: 10px;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .conv-item:hover {

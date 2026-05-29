@@ -13,8 +13,10 @@
     "windows": [
       {
         "title": "antigravity-session-manager",
-        "width": 800,
-        "height": 600
+        "width": 1280,
+        "height": 720,
+        "minWidth": 1080,
+        "minHeight": 720
       }
     ],
     "security": {

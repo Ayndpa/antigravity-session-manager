@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import { ConversationMetadata, Project } from "../types";
 import { TranslationKey } from "../translations";
 import {
@@ -61,6 +61,72 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setShowAuditView,
   deleteConversationsBatch,
 }) => {
+  const lastClickedConvIdRef = useRef<string | null>(null);
+
+  const handleConvClick = (e: React.MouseEvent, c: ConversationMetadata) => {
+    const isCheckboxClick =
+      (e.target as HTMLElement).classList.contains("conv-item-checkbox") ||
+      (e.target instanceof HTMLInputElement && e.target.type === "checkbox");
+
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      setBatchSelectedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(c.id)) {
+          next.delete(c.id);
+        } else {
+          next.add(c.id);
+        }
+        return next;
+      });
+      lastClickedConvIdRef.current = c.id;
+    } else if (e.shiftKey) {
+      e.preventDefault();
+      const lastId = lastClickedConvIdRef.current;
+      const currentIdx = filteredConversations.findIndex((item) => item.id === c.id);
+      const lastIdx = lastId ? filteredConversations.findIndex((item) => item.id === lastId) : -1;
+
+      const idsInRange: string[] = [];
+      if (lastIdx !== -1 && currentIdx !== -1) {
+        const start = Math.min(lastIdx, currentIdx);
+        const end = Math.max(lastIdx, currentIdx);
+        for (let i = start; i <= end; i++) {
+          idsInRange.push(filteredConversations[i].id);
+        }
+      } else {
+        idsInRange.push(c.id);
+      }
+
+      const shouldSelect = !batchSelectedIds.has(c.id);
+
+      setBatchSelectedIds((prev) => {
+        const next = new Set(prev);
+        if (shouldSelect) {
+          idsInRange.forEach((id) => next.add(id));
+        } else {
+          idsInRange.forEach((id) => next.delete(id));
+        }
+        return next;
+      });
+      lastClickedConvIdRef.current = c.id;
+    } else {
+      if (isCheckboxClick) {
+        setBatchSelectedIds((prev) => {
+          const next = new Set(prev);
+          if (next.has(c.id)) {
+            next.delete(c.id);
+          } else {
+            next.add(c.id);
+          }
+          return next;
+        });
+      } else {
+        selectConversation(c.id);
+      }
+      lastClickedConvIdRef.current = c.id;
+    }
+  };
+
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       const ids = filteredConversations.map((c) => c.id);
@@ -214,21 +280,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div
                 key={c.id}
                 className={`conv-item ${isSelected ? "active" : ""}`}
-                onClick={() => selectConversation(c.id)}
+                onClick={(e) => handleConvClick(e, c)}
               >
                 <input
                   type="checkbox"
                   className="checkbox-custom conv-item-checkbox"
                   checked={isChecked}
-                  onClick={(e) => e.stopPropagation()}
-                  onChange={(e) => {
-                    setBatchSelectedIds((prev) => {
-                      const next = new Set(prev);
-                      if (e.target.checked) next.add(c.id);
-                      else next.delete(c.id);
-                      return next;
-                    });
-                  }}
+                  readOnly
                 />
                 <div className="conv-item-content">
                   <div className="conv-item-header">

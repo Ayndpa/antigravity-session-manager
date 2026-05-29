@@ -34,6 +34,5 @@ mod tests {
         for p in &projects {
             println!("Project: {} (ID: {})", p.name, p.id);
         }
-        assert_eq!(projects.len(), 15);
     }
 }

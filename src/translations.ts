@@ -85,7 +85,9 @@ export const translations = {
     failedDeleteConversation: "Failed to delete conversation: ",
     failedBatchDelete: "Failed to batch delete conversations: ",
     failedSaveProject: "Failed to save project: ",
-    failedDeleteProject: "Failed to delete project: "
+    failedDeleteProject: "Failed to delete project: ",
+    confirmDeleteProjectsBatch: "Are you sure you want to delete the {count} selected projects? The underlying git directories will NOT be modified, but their session bindings will disappear.",
+    failedDeleteProjectsBatch: "Failed to batch delete projects: "
   },
   zh: {
 
@@ -173,7 +175,9 @@ export const translations = {
     failedDeleteConversation: "删除会话失败: ",
     failedBatchDelete: "批量删除会话失败: ",
     failedSaveProject: "保存项目失败: ",
-    failedDeleteProject: "删除项目失败: "
+    failedDeleteProject: "删除项目失败: ",
+    confirmDeleteProjectsBatch: "您确定要删除所选的 {count} 个项目吗？底层 git 目录不会被修改，但其会话绑定将消失。",
+    failedDeleteProjectsBatch: "批量删除项目失败: "
   }
 } as const;
 
