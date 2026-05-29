@@ -83,6 +83,9 @@ npm run tauri build
 
 The output installers and binaries will be located under the `src-tauri/target/release/bundle/` directory.
 
+### License
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
 ---
 
 <a name="中文"></a>
@@ -163,3 +166,6 @@ npm run tauri build
 ```
 
 打包生成的安装包和二进制文件将位于 `src-tauri/target/release/bundle/` 目录下。
+
+### 开源协议
+本项目采用 MIT 开源协议。详情请参阅 [LICENSE](LICENSE) 文件。
