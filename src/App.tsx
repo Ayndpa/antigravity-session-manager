@@ -1,115 +1,23 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
-import { marked } from "marked";
 import "./App.css";
 import { translations, TranslationKey } from "./translations";
+import {
+  Project,
+  ConversationMetadata,
+  ConversationDetail,
+  AuditStats,
+  ArtifactFile,
+} from "./types";
 
-// Interface Definitions
-interface Project {
-  id: string;
-  name: string;
-  project_resources: {
-    resources: Array<{
-      git_folder: {
-        folder_uri: string;
-        allow_write: boolean;
-      };
-    }>;
-  };
-}
-
-interface ConversationMetadata {
-  id: string;
-  title: string;
-  summary: string;
-  created_at: string;
-  modified_at: string;
-  file_type: string;
-  size_bytes: number;
-  has_logs: boolean;
-  step_count: number;
-  message_count: number;
-  tool_call_count: number;
-  error_count: number;
-  project_id: string | null;
-}
-
-interface ArtifactFile {
-  name: string;
-  path: string;
-  content: string;
-}
-
-interface ConversationDetail {
-  id: string;
-  metadata: ConversationMetadata;
-  steps: Array<any>;
-  artifacts: Array<ArtifactFile>;
-}
-
-interface AuditStats {
-  total_conversations: number;
-  total_steps: number;
-  total_tool_calls: number;
-  total_errors: number;
-  tool_frequency: Record<string, number>;
-  conversations_by_project: Record<string, number>;
-  errors_by_tool: Record<string, number>;
-  average_steps_per_conversation: number;
-}
-
-
-
-// Inline SVG Icons
-const IconSearch = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-);
-const IconTrash = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-);
-const IconFolder = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-);
-const IconChart = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
-);
-const IconClose = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-);
-const IconDatabase = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"></path></svg>
-);
-const IconRefresh = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
-);
-const IconExport = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-);
-const IconTerminal = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
-);
-const IconTool = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
-);
-const IconPlus = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-);
-const IconEdit = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"></path></svg>
-);
-
-const IconChevronLeft = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-);
-const IconChevronRight = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-);
-
+import { Sidebar } from "./components/Sidebar";
+import { WelcomePanel } from "./components/WelcomePanel";
+import { AuditView } from "./components/AuditView";
+import { DetailView } from "./components/DetailView";
+import { ProjectsModal } from "./components/ProjectsModal";
 
 function App() {
-
-
   // Collapsible sidebar state
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -124,8 +32,12 @@ function App() {
   }, [lang]);
 
   // Translation function
-  const t = (key: TranslationKey, variables?: Record<string, string | number>) => {
-    let text: string = translations[lang]?.[key] || translations.en[key] || String(key);
+  const t = (
+    key: TranslationKey,
+    variables?: Record<string, string | number>
+  ) => {
+    let text: string =
+      translations[lang]?.[key] || translations.en[key] || String(key);
     if (variables) {
       Object.entries(variables).forEach(([k, v]) => {
         text = text.replace(`{${k}}`, String(v));
@@ -134,24 +46,25 @@ function App() {
     return text;
   };
 
-
   // User Space Lists
   const [projects, setProjects] = useState<Project[]>([]);
   const [conversations, setConversations] = useState<ConversationMetadata[]>([]);
   const [auditStats, setAuditStats] = useState<AuditStats | null>(null);
 
-
-
   // Selections
   const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
-  const [selectedConvDetail, setSelectedConvDetail] = useState<ConversationDetail | null>(null);
-  const [activeArtifact, setActiveArtifact] = useState<ArtifactFile | null>(null);
-  const [batchSelectedIds, setBatchSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedConvDetail, setSelectedConvDetail] =
+    useState<ConversationDetail | null>(null);
+  const [activeArtifact, setActiveArtifact] = useState<ArtifactFile | null>(
+    null
+  );
+  const [batchSelectedIds, setBatchSelectedIds] = useState<Set<string>>(
+    new Set()
+  );
 
   // Loading States
   const [loading, setLoading] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
-
 
   // Filters & Search
   const [searchTerm, setSearchTerm] = useState("");
@@ -229,7 +142,9 @@ function App() {
     setActiveArtifact(null);
     setExpandedSteps(new Set([0])); // expand first step by default
     try {
-      const detail = await invoke<ConversationDetail>("get_conversation_detail", { id });
+      const detail = await invoke<ConversationDetail>("get_conversation_detail", {
+        id,
+      });
       setSelectedConvDetail(detail);
     } catch (e) {
       console.error("Failed to fetch conversation details:", e);
@@ -267,7 +182,9 @@ function App() {
 
     try {
       setLoading(true);
-      await invoke("delete_conversations_batch", { ids: Array.from(batchSelectedIds) });
+      await invoke("delete_conversations_batch", {
+        ids: Array.from(batchSelectedIds),
+      });
       setBatchSelectedIds(new Set());
       setSelectedConvId(null);
       setSelectedConvDetail(null);
@@ -275,16 +192,6 @@ function App() {
     } catch (e) {
       alert(t("failedBatchDelete") + e);
       setLoading(false);
-    }
-  };
-
-  // Select/Deselect All in batch
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      const ids = filteredConversations.map((c) => c.id);
-      setBatchSelectedIds(new Set(ids));
-    } else {
-      setBatchSelectedIds(new Set());
     }
   };
 
@@ -312,8 +219,6 @@ function App() {
       alert(t("failedDeleteProject") + e);
     }
   };
-
-
 
   // Trigger project edit
   const startEditProject = (proj: Project) => {
@@ -354,826 +259,113 @@ function App() {
     });
   };
 
-  // Format helpers
-  const formatBytes = (bytes: number) => {
-    if (bytes === 0) return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  };
-
-  const formatDate = (dateStr: string) => {
-    try {
-      const date = new Date(dateStr);
-      return date.toLocaleString();
-    } catch (e) {
-      return dateStr;
-    }
-  };
-
   const handleExportJson = () => {
     if (!selectedConvDetail) return;
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(selectedConvDetail, null, 2));
-    const downloadAnchor = document.createElement('a');
+    const dataStr =
+      "data:text/json;charset=utf-8," +
+      encodeURIComponent(JSON.stringify(selectedConvDetail, null, 2));
+    const downloadAnchor = document.createElement("a");
     downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `conversation_${selectedConvDetail.id}.json`);
+    downloadAnchor.setAttribute(
+      "download",
+      `conversation_${selectedConvDetail.id}.json`
+    );
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
   };
 
-  const renderMarkdown = (mdText: string) => {
-    try {
-      const parsed = marked.parse(mdText) as string;
-      return <div className="markdown-body" dangerouslySetInnerHTML={{ __html: parsed }} />;
-    } catch (e) {
-      return <div style={{ whiteSpace: "pre-wrap" }}>{mdText}</div>;
-    }
-  };
-
-
-
-  /* ================= USER SPACE WINDOW LAYOUT ================= */
   return (
     <div className="app-container">
       {/* 1. SIDEBAR */}
-      <aside className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
-        <div className="sidebar-header">
-          <div className="brand-section" style={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "center" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <img src="/logo.png" className="brand-logo" alt="Logo" style={{ width: "24px", height: "24px", objectFit: "contain" }} />
-              <h1 className="brand-name">Antigravity</h1>
-            </div>
-            <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-              <button
-                className="toggle-sidebar-btn"
-                style={{ width: "auto", padding: "0 8px", fontSize: "11px", height: "28px" }}
-                onClick={() => setLang(lang === "en" ? "zh" : "en")}
-                title={lang === "en" ? "切换为中文" : "Switch to English"}
-              >
-                🌐 {lang === "en" ? "ZH" : "EN"}
-              </button>
-              <button className="toggle-sidebar-btn" style={{ width: "28px", height: "28px" }} onClick={() => setSidebarCollapsed(true)} title="Collapse Sidebar">
-                <IconChevronLeft />
-              </button>
-            </div>
-          </div>
-
-          <div className="sidebar-controls" style={{ flexWrap: "wrap", gap: "6px" }}>
-            <button className="sidebar-btn" onClick={() => setShowProjectModal(true)}>
-              <IconFolder /> {t("projects")}
-            </button>
-            <button className="sidebar-btn" onClick={() => setShowAuditView(!showAuditView)}>
-              <IconChart /> {showAuditView ? t("sessions") : t("audit")}
-            </button>
-
-          </div>
-        </div>
-
-        {/* Filters Panel */}
-        <div className="search-filter-section">
-          <div className="search-input-wrapper">
-            <span style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", display: "flex" }}>
-              <IconSearch />
-            </span>
-            <input
-              type="text"
-              placeholder={t("searchSessions")}
-              className="search-input"
-              style={{ paddingLeft: "32px" }}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div className="filter-row">
-            <select
-              className="filter-select"
-              value={projectFilter}
-              onChange={(e) => setProjectFilter(e.target.value)}
-            >
-              <option value="all">{t("allProjects")}</option>
-              <option value="unassociated">{t("unassociated")}</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-            <select
-              className="filter-select"
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-            >
-              <option value="all">{t("allFormats")}</option>
-              <option value="db">{t("sqliteDb")}</option>
-              <option value="pb">{t("protobufPb")}</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Conversation List */}
-        {loading ? (
-          <div className="loading-wrapper">
-            <div className="spinner"></div>
-            <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{t("initializingScanner")}</div>
-          </div>
-        ) : filteredConversations.length === 0 ? (
-          <div className="empty-state">
-            <span className="empty-state-icon">🛰️</span>
-            <div>{t("noConversationsMatch")}</div>
-          </div>
-        ) : (
-          <div className="conversation-list-container">
-            {filteredConversations.map((c) => {
-              const isSelected = selectedConvId === c.id;
-              const isChecked = batchSelectedIds.has(c.id);
-              const pName = c.project_id ? projectMap.get(c.project_id) || "Binding Project" : null;
-
-              return (
-                <div
-                  key={c.id}
-                  className={`conv-item ${isSelected ? "active" : ""}`}
-                  onClick={() => selectConversation(c.id)}
-                >
-                  <input
-                    type="checkbox"
-                    className="checkbox-custom conv-item-checkbox"
-                    checked={isChecked}
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={(e) => {
-                      setBatchSelectedIds((prev) => {
-                        const next = new Set(prev);
-                        if (e.target.checked) next.add(c.id);
-                        else next.delete(c.id);
-                        return next;
-                      });
-                    }}
-                  />
-                  <div className="conv-item-content">
-                    <div className="conv-item-header">
-                      <span className="conv-item-title" title={c.title}>
-                        {c.title}
-                      </span>
-                      <span className={`conv-item-badge badge-${c.file_type}`}>
-                        {c.file_type}
-                      </span>
-                    </div>
-                    <div className="conv-item-desc" title={c.summary}>
-                      {c.summary}
-                    </div>
-                    <div className="conv-item-footer">
-                      <span>{pName ? `📁 ${pName}` : `📡 ${t("unassociated")}`}</span>
-                      <span>{formatDate(c.modified_at).split(" ")[0]}</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Batch Actions Footer */}
-        {!loading && filteredConversations.length > 0 && (
-          <div className="batch-actions-bar">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                className="checkbox-custom"
-                checked={
-                  filteredConversations.length > 0 &&
-                  filteredConversations.every((c) => batchSelectedIds.has(c.id))
-                }
-                onChange={(e) => handleSelectAll(e.target.checked)}
-              />
-              {t("selectAll")}
-            </label>
-            {batchSelectedIds.size > 0 && (
-              <button className="btn-danger-sm" onClick={deleteConversationsBatch}>
-                {t("deleteSelected", { count: batchSelectedIds.size })}
-              </button>
-            )}
-          </div>
-        )}
-      </aside>
+      <Sidebar
+        sidebarCollapsed={sidebarCollapsed}
+        setSidebarCollapsed={setSidebarCollapsed}
+        lang={lang}
+        setLang={setLang}
+        t={t}
+        projects={projects}
+        conversations={conversations}
+        filteredConversations={filteredConversations}
+        selectedConvId={selectedConvId}
+        selectConversation={selectConversation}
+        batchSelectedIds={batchSelectedIds}
+        setBatchSelectedIds={setBatchSelectedIds}
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        projectFilter={projectFilter}
+        setProjectFilter={setProjectFilter}
+        typeFilter={typeFilter}
+        setTypeFilter={setTypeFilter}
+        loading={loading}
+        projectMap={projectMap}
+        setShowProjectModal={setShowProjectModal}
+        showAuditView={showAuditView}
+        setShowAuditView={setShowAuditView}
+        deleteConversationsBatch={deleteConversationsBatch}
+      />
 
       {/* 2. MAIN WORKSPACE CONTENT */}
       <main className="main-content">
         {showAuditView ? (
           /* ================= AUDIT STATISTICS VIEW ================= */
-          <div className="audit-container">
-            <div className="audit-header">
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                {sidebarCollapsed && (
-                  <button className="toggle-sidebar-btn" onClick={() => setSidebarCollapsed(false)} title="Show Sidebar">
-                    <IconChevronRight />
-                  </button>
-                )}
-                <h2 className="audit-title">{t("antigravitySessionsAudit")}</h2>
-              </div>
-              <button className="btn-primary" onClick={loadData}>
-                <IconRefresh /> {t("refreshStats")}
-              </button>
-            </div>
-
-
-            {auditStats ? (
-              <>
-                {/* Stats Cards */}
-                <div className="audit-stats-grid">
-                  <div className="audit-stat-card">
-                    <span className="audit-stat-label">{t("totalConversations")}</span>
-                    <span className="audit-stat-value">{auditStats.total_conversations}</span>
-                  </div>
-                  <div className="audit-stat-card purple">
-                    <span className="audit-stat-label">{t("totalActionsSteps")}</span>
-                    <span className="audit-stat-value">{auditStats.total_steps}</span>
-                  </div>
-                  <div className="audit-stat-card">
-                    <span className="audit-stat-label">{t("toolCallsInvoked")}</span>
-                    <span className="audit-stat-value">{auditStats.total_tool_calls}</span>
-                  </div>
-                  <div className="audit-stat-card pink">
-                    <span className="audit-stat-label">{t("failedTasksErrors")}</span>
-                    <span className="audit-stat-value">
-                      {auditStats.total_errors}{" "}
-                      <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-                        {t("successPercent", { pct: auditStats.total_steps > 0
-                          ? ((1 - auditStats.total_errors / auditStats.total_steps) * 100).toFixed(1)
-                          : "100" })}
-                      </span>
-                    </span>
-                  </div>
-                </div>
-
-                {/* SVG Visualizations */}
-                <div className="charts-row">
-                  {/* Tool frequency horizontal bar chart */}
-                  <div className="chart-card">
-                    <h3 className="chart-card-title">{t("top5ToolFrequencies")}</h3>
-                    <div className="chart-wrapper">
-                      {Object.keys(auditStats.tool_frequency).length === 0 ? (
-                        <div className="empty-state">{t("noToolCallData")}</div>
-                      ) : (
-                        <svg width="100%" height="100%" viewBox="0 0 400 240">
-                          {(() => {
-                            const sortedTools = Object.entries(auditStats.tool_frequency)
-                              .sort((a, b) => b[1] - a[1])
-                              .slice(0, 5);
-                            const maxVal = Math.max(...sortedTools.map((t) => t[1])) || 1;
-
-                            return sortedTools.map(([toolName, val], idx) => {
-                              const y = 20 + idx * 45;
-                              const barWidth = (val / maxVal) * 220;
-
-                              return (
-                                <g key={toolName}>
-                                  <text
-                                    x="10"
-                                    y={y + 16}
-                                    fill="var(--text-muted)"
-                                    fontSize="11"
-                                    fontFamily="var(--font-mono)"
-                                  >
-                                    {toolName.length > 15 ? `${toolName.substring(0, 12)}...` : toolName}
-                                  </text>
-                                  <rect x="130" y={y} width="220" height="20" rx="3" fill="#131836" />
-                                  <rect
-                                    x="130"
-                                    y={y}
-                                    width={barWidth}
-                                    height="20"
-                                    rx="3"
-                                    fill="url(#neonCyanGrad)"
-                                  >
-                                    <animate attributeName="width" from="0" to={barWidth} dur="0.8s" fill="freeze" />
-                                  </rect>
-                                  <text x={135 + barWidth} y={y + 15} fill="var(--text-glow)" fontSize="11" fontWeight="700">
-                                    {val}
-                                  </text>
-                                </g>
-                              );
-                            });
-                          })()}
-                          <defs>
-                            <linearGradient id="neonCyanGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                              <stop offset="0%" stopColor="#00F2FE" stopOpacity="0.8" />
-                              <stop offset="100%" stopColor="#9b51e0" stopOpacity="0.8" />
-                            </linearGradient>
-                          </defs>
-                        </svg>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Sessions by project vertical bar chart */}
-                  <div className="chart-card">
-                    <h3 className="chart-card-title">{t("sessionsByProject")}</h3>
-                    <div className="chart-wrapper">
-                      {Object.keys(auditStats.conversations_by_project).length === 0 ? (
-                        <div className="empty-state">{t("noProjectAssociationData")}</div>
-                      ) : (
-                        <svg width="100%" height="100%" viewBox="0 0 400 240">
-                          {(() => {
-                            const sortedProjs = Object.entries(auditStats.conversations_by_project)
-                              .sort((a, b) => b[1] - a[1])
-                              .slice(0, 5);
-                            const maxVal = Math.max(...sortedProjs.map((t) => t[1])) || 1;
-
-                            return (
-                              <>
-                                {sortedProjs.map(([projId, val], idx) => {
-                                  const x = 50 + idx * 70;
-                                  const barHeight = (val / maxVal) * 140;
-                                  const y = 180 - barHeight;
-                                  const name = projectMap.get(projId) || (projId === "Unassociated" ? t("unassociated") : "Unknown");
-
-                                  return (
-                                    <g key={projId}>
-                                      <text x={x + 18} y={y - 8} fill="var(--text-glow)" fontSize="11" fontWeight="700" textAnchor="middle">
-                                        {val}
-                                      </text>
-                                      <rect x={x} y="40" width="36" height="140" rx="4" fill="#131836" />
-                                      <rect
-                                        x={x}
-                                        y={y}
-                                        width="36"
-                                        height={barHeight}
-                                        rx="4"
-                                        fill="url(#neonPurpleGrad)"
-                                      >
-                                        <animate attributeName="height" from="0" to={barHeight} dur="0.8s" fill="freeze" />
-                                        <animate attributeName="y" from="180" to={y} dur="0.8s" fill="freeze" />
-                                      </rect>
-                                      <text
-                                        x={x + 18}
-                                        y="198"
-                                        fill="var(--text-muted)"
-                                        fontSize="10"
-                                        textAnchor="middle"
-                                        fontWeight="500"
-                                      >
-                                        {name.length > 8 ? `${name.substring(0, 6)}..` : name}
-                                      </text>
-                                    </g>
-                                  );
-                                })}
-                                <defs>
-                                  <linearGradient id="neonPurpleGrad" x1="0%" y1="100%" x2="0%" y2="0%">
-                                    <stop offset="0%" stopColor="#9b51e0" stopOpacity="0.4" />
-                                    <stop offset="100%" stopColor="#ff007f" stopOpacity="0.8" />
-                                  </linearGradient>
-                                </defs>
-                              </>
-                            );
-                          })()}
-                        </svg>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Audit Errors Table */}
-                <div className="chart-card" style={{ height: "auto", flex: "none" }}>
-                  <h3 className="chart-card-title">{t("errorVulnerabilitiesAudit")}</h3>
-                  <div style={{ overflowX: "auto", marginTop: "10px" }}>
-                    {Object.keys(auditStats.errors_by_tool).length === 0 ? (
-                      <div className="empty-state" style={{ padding: "20px" }}>
-                        {t("zeroCriticalErrors")}
-                      </div>
-                    ) : (
-                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "left" }}>
-                        <thead>
-                          <tr style={{ borderBottom: "1px solid var(--border-color)", color: "var(--text-muted)" }}>
-                            <th style={{ padding: "10px" }}>{t("taskModuleToolName")}</th>
-                            <th style={{ padding: "10px" }}>{t("failureCount")}</th>
-                            <th style={{ padding: "10px" }}>{t("securityLevel")}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {Object.entries(auditStats.errors_by_tool).map(([toolName, val]) => (
-                            <tr key={toolName} style={{ borderBottom: "1.5px solid rgba(255,255,255,0.02)" }}>
-                              <td style={{ padding: "10px", fontFamily: "var(--font-mono)", color: "var(--neon-cyan)" }}>
-                                {toolName}
-                              </td>
-                              <td style={{ padding: "10px", color: "var(--neon-pink)", fontWeight: "700" }}>
-                                {val}
-                              </td>
-                              <td style={{ padding: "10px" }}>
-                                <span style={{
-                                  background: "rgba(255, 0, 127, 0.1)",
-                                  color: "var(--neon-pink)",
-                                  padding: "2px 6px",
-                                  borderRadius: "4px",
-                                  fontSize: "9px",
-                                  fontWeight: "800",
-                                  border: "0.5px solid var(--neon-pink)"
-                                }}>
-                                  {t("vulnerable")}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="empty-state">{t("noStatisticsLoaded")}</div>
-            )}
-          </div>
+          <AuditView
+            sidebarCollapsed={sidebarCollapsed}
+            setSidebarCollapsed={setSidebarCollapsed}
+            t={t}
+            auditStats={auditStats}
+            loadData={loadData}
+            projectMap={projectMap}
+          />
         ) : loadingDetail ? (
           <div className="loading-wrapper">
             <div className="spinner"></div>
-            <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{t("decryptingTimeline")}</div>
+            <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+              {t("decryptingTimeline")}
+            </div>
           </div>
         ) : selectedConvDetail ? (
           /* ================= CHAT LOG DETAIL VIEW ================= */
-          <div style={{ display: "flex", flex: 1, height: "100%", overflow: "hidden", minWidth: 0 }}>
-            {/* Main timeline thread */}
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", minWidth: 0 }}>
-              {/* Header */}
-              <div className="chat-header">
-                {sidebarCollapsed && (
-                  <button className="toggle-sidebar-btn" onClick={() => setSidebarCollapsed(false)} style={{ marginRight: "12px" }} title="Show Sidebar">
-                    <IconChevronRight />
-                  </button>
-                )}
-                <div className="chat-header-info">
-                  <h2 className="chat-header-title">{selectedConvDetail.metadata.title}</h2>
-
-                  <div className="chat-header-meta">
-                    <span className="meta-item">
-                      ID: <span className="meta-item-strong">{selectedConvDetail.metadata.id.substring(0, 8)}...</span>
-                    </span>
-                    <span className="meta-item">
-                      Format: <span className={`conv-item-badge badge-${selectedConvDetail.metadata.file_type}`}>{selectedConvDetail.metadata.file_type}</span>
-                    </span>
-                    <span className="meta-item">
-                      <IconDatabase /> Size: <span className="meta-item-strong">{formatBytes(selectedConvDetail.metadata.size_bytes)}</span>
-                    </span>
-                    <span className="meta-item">
-                      Date: <span className="meta-item-strong">{formatDate(selectedConvDetail.metadata.created_at)}</span>
-                    </span>
-                  </div>
-                </div>
-                <div className="chat-header-actions">
-                  <button className="btn-secondary" onClick={handleExportJson}>
-                    <IconExport /> {t("exportJson")}
-                  </button>
-                  <button className="btn-danger" onClick={() => deleteConversation(selectedConvDetail.metadata.id)}>
-                    <IconTrash /> {t("delete")}
-                  </button>
-                </div>
-              </div>
-
-              {/* Chat timeline body */}
-              <div className="chat-body-container">
-                <div className="messages-list-wrapper">
-                  {selectedConvDetail.steps.length === 0 ? (
-                    <div className="empty-state" style={{ height: "100%" }}>
-                      <span className="empty-state-icon">🤖</span>
-                      <div>{t("noTextTranscriptLogs")}</div>
-                    </div>
-                  ) : (
-                    selectedConvDetail.steps.map((step: any, idx: number) => {
-                      const isUser = step.source === "USER_EXPLICIT" || step.type === "USER_INPUT";
-                      const isSystem = step.source === "SYSTEM";
-                      const isModel = step.source === "MODEL";
-
-                      if (isSystem) {
-                        const isExpanded = expandedSteps.has(idx);
-                        return (
-                          <div className="system-msg-row" key={idx}>
-                            <div className="system-msg-card">
-                              <div className="system-msg-header">
-                                <span>{t("systemContextStep", { step: step.step_index ?? idx })}</span>
-                                <button className="system-msg-toggle" onClick={() => toggleStepExpanded(idx)}>
-                                  {isExpanded ? t("collapse") : t("expandLogs")}
-                                </button>
-                              </div>
-                              {isExpanded && (
-                                <pre className="system-msg-content">{step.content}</pre>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      }
-
-                      if (isModel && step.status === "ERROR" && step.content) {
-                        return (
-                          <div className="system-msg-row" key={idx}>
-                            <div className="system-msg-card" style={{
-                              borderColor: "var(--neon-pink)",
-                              background: "rgba(255,0,127,0.03)"
-                            }}>
-                              <div className="system-msg-header" style={{ color: "var(--neon-pink)" }}>
-                                <span>{t("stepErrorPlannerFailed")}</span>
-                              </div>
-                              <pre className="system-msg-content">{step.content}</pre>
-                            </div>
-                          </div>
-                        );
-                      }
-
-                      if (!isUser && !isModel) return null;
-
-                      const avatar = isUser ? "👤" : "🤖";
-                      const name = isUser ? t("userRequest") : t("antigravityAgent");
-                      const time = step.created_at ? formatDate(step.created_at).split(" ")[1] : "";
-
-                      const hasToolCalls = step.tool_calls && step.tool_calls.length > 0;
-
-                      return (
-                        <div className={`msg-row ${isUser ? "user" : "model"}`} key={idx}>
-                          <div className="msg-avatar">{avatar}</div>
-                          <div className="msg-bubble">
-                            <div className="msg-sender-info">
-                              <span className="msg-sender-name">{name}</span>
-                              {time && <span className="msg-time">{time}</span>}
-                            </div>
-                            <div className="msg-card">
-                              {step.content && renderMarkdown(step.content)}
-
-                              {hasToolCalls && (
-                                <div className="tool-calls-container">
-                                  {step.tool_calls.map((tool: any, tIdx: number) => {
-                                    const toolKey = idx * 1000 + tIdx;
-                                    const isToolExpanded = expandedSteps.has(toolKey);
-                                    const isToolError = step.status === "ERROR";
-
-                                    return (
-                                      <div className="tool-call-box" key={tIdx}>
-                                        <div className="tool-call-header" onClick={() => toggleStepExpanded(toolKey)}>
-                                          <div className="tool-call-title-section">
-                                            <span className="tool-call-icon" style={{ display: "flex", alignItems: "center" }}>
-                                              {tool.name === "run_command" ? <IconTerminal /> : <IconTool />}
-                                            </span>
-                                            {t("toolCall")}
-                                            <span className="tool-call-name">{tool.name}</span>
-                                            {tool.args && tool.args.toolSummary && (
-                                              <span className="tool-call-summary">
-                                                ({tool.args.toolSummary.replace(/"/g, "")})
-                                              </span>
-                                            )}
-                                          </div>
-                                          <span className={`tool-call-status ${isToolError ? "status-error" : "status-success"}`}>
-                                            {isToolError ? "Failed" : "Invoked"}
-                                          </span>
-                                        </div>
-
-                                        {isToolExpanded && (
-                                          <div className="tool-call-body">
-                                            <div className="tool-code-section">
-                                              <span className="tool-code-title">{t("argumentsJson")}</span>
-                                              <pre className="tool-code-pre">
-                                                {JSON.stringify(tool.args, null, 2)}
-                                              </pre>
-                                            </div>
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                  <div ref={messagesEndRef} />
-                </div>
-
-                {/* Right side panel: Artifacts */}
-                <div className="artifacts-panel">
-                  <div className="artifacts-panel-header">
-                    📄 {t("sessionArtifacts", { count: selectedConvDetail.artifacts.length })}
-                  </div>
-                  {selectedConvDetail.artifacts.length === 0 ? (
-                    <div className="empty-state" style={{ marginTop: "30px" }}>
-                      {t("noArtifactsGenerated")}
-                    </div>
-                  ) : (
-                    <div className="artifacts-list">
-                      {selectedConvDetail.artifacts.map((art) => {
-                        const isActive = activeArtifact?.name === art.name;
-                        return (
-                          <div
-                            key={art.name}
-                            className={`artifact-item ${isActive ? "active" : ""}`}
-                            onClick={() => setActiveArtifact(isActive ? null : art)}
-                          >
-                            <span className="artifact-item-name" title={art.name}>
-                              {art.name}
-                            </span>
-                            <span className="artifact-item-type">
-                              {art.name.endsWith(".md") ? t("markdownFile") : t("configFile")}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Artifact Content Overlay panel */}
-            {activeArtifact && (
-              <div className="artifact-overlay-panel">
-
-                <div className="chat-header" style={{ borderBottom: "1.5px solid var(--border-color)" }}>
-                  <div className="chat-header-info">
-                    <h3 className="chat-header-title">{activeArtifact.name}</h3>
-                    <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>
-                      {t("filePath", { path: activeArtifact.path })}
-                    </span>
-                  </div>
-                  <button className="modal-close-btn" onClick={() => setActiveArtifact(null)}>
-                    <IconClose />
-                  </button>
-                </div>
-                <div style={{ flex: 1, padding: "20px", overflowY: "auto" }}>
-                  {activeArtifact.name.endsWith(".md") ? (
-                    renderMarkdown(activeArtifact.content)
-                  ) : (
-                    <pre className="tool-code-pre" style={{ height: "100%" }}>{activeArtifact.content}</pre>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+          <DetailView
+            sidebarCollapsed={sidebarCollapsed}
+            setSidebarCollapsed={setSidebarCollapsed}
+            t={t}
+            selectedConvDetail={selectedConvDetail}
+            deleteConversation={deleteConversation}
+            handleExportJson={handleExportJson}
+            activeArtifact={activeArtifact}
+            setActiveArtifact={setActiveArtifact}
+            expandedSteps={expandedSteps}
+            toggleStepExpanded={toggleStepExpanded}
+            messagesEndRef={messagesEndRef}
+          />
         ) : (
           /* ================= WELCOME SCREEN DASHBOARD ================= */
-          <div className="welcome-panel" style={{ position: "relative" }}>
-            {sidebarCollapsed && (
-              <button className="toggle-sidebar-btn floating-toggle-btn" onClick={() => setSidebarCollapsed(false)} title="Show Sidebar">
-                <IconChevronRight />
-              </button>
-            )}
-            <img src="/logo.png" className="welcome-logo" alt="Logo" style={{ width: "96px", height: "96px", objectFit: "contain" }} />
-            <h2 className="welcome-title">{t("welcomeTitle")}</h2>
-
-            <p className="welcome-subtitle">
-              {t("welcomeSubtitle")}
-            </p>
-
-            <div className="dashboard-grid">
-              <div className="dash-card">
-                <span className="dash-card-icon">📁</span>
-                <span className="dash-card-val">{projects.length}</span>
-                <span className="dash-card-lbl">{t("projectsLinked")}</span>
-              </div>
-              <div className="dash-card">
-                <span className="dash-card-icon">💬</span>
-                <span className="dash-card-val">{conversations.length}</span>
-                <span className="dash-card-lbl">{t("totalSessions")}</span>
-              </div>
-              <div className="dash-card">
-                <span className="dash-card-icon">⚡</span>
-                <span className="dash-card-val">
-                  {auditStats ? auditStats.total_tool_calls : 0}
-                </span>
-                <span className="dash-card-lbl">{t("toolsAudited")}</span>
-              </div>
-            </div>
-          </div>
+          <WelcomePanel
+            sidebarCollapsed={sidebarCollapsed}
+            setSidebarCollapsed={setSidebarCollapsed}
+            t={t}
+            projects={projects}
+            conversations={conversations}
+            auditStats={auditStats}
+          />
         )}
       </main>
 
       {/* 3. PROJECTS MANAGER MODAL */}
       {showProjectModal && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h3 className="modal-header-title">{t("projectsDirectoryConfig")}</h3>
-              <button className="modal-close-btn" onClick={() => {
-                setShowProjectModal(false);
-                setEditingProject(null);
-              }}>
-                <IconClose />
-              </button>
-            </div>
-
-            <div className="modal-body">
-              {editingProject ? (
-                /* Edit/Create Form */
-                <form onSubmit={handleSaveProject}>
-                  <div className="form-group">
-                    <label className="form-label">{t("projectIdUuid")}</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      disabled
-                      value={editingProject.id}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">{t("projectName")}</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      required
-                      placeholder="e.g. Lively Hubble"
-                      value={editingProject.name}
-                      onChange={(e) => setEditingProject({ ...editingProject, name: e.target.value })}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">{t("gitWorkspaceFolderUri")}</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      required
-                      placeholder="file:///c:/path/to/folder"
-                      value={editingProject.project_resources.resources[0].git_folder.folder_uri}
-                      onChange={(e) => {
-                        const updated = { ...editingProject };
-                        updated.project_resources.resources[0].git_folder.folder_uri = e.target.value;
-                        setEditingProject(updated);
-                      }}
-                    />
-                  </div>
-                  <div className="form-checkbox-row">
-                    <input
-                      type="checkbox"
-                      id="allowWriteCheckbox"
-                      className="checkbox-custom"
-                      checked={editingProject.project_resources.resources[0].git_folder.allow_write}
-                      onChange={(e) => {
-                        const updated = { ...editingProject };
-                        updated.project_resources.resources[0].git_folder.allow_write = e.target.checked;
-                        setEditingProject(updated);
-                      }}
-                    />
-                    <label htmlFor="allowWriteCheckbox" className="form-checkbox-label">
-                      {t("enableWriteAccess")}
-                    </label>
-                  </div>
-                  <div style={{ marginTop: "24px", display: "flex", gap: "10px", justifyContent: "flex-end" }}>
-                    <button type="button" className="btn-secondary" onClick={() => setEditingProject(null)}>
-                      {t("back")}
-                    </button>
-                    <button type="submit" className="btn-primary">
-                      {isCreatingProject ? t("registerProject") : t("applyEdits")}
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                /* Projects List */
-                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-                      {t("linkingPhysicalFolders")}
-                    </span>
-                    <button className="btn-primary" style={{ padding: "6px 12px" }} onClick={startCreateProject}>
-                      <IconPlus /> {t("addProject")}
-                    </button>
-                  </div>
-                  
-                  {projects.length === 0 ? (
-                    <div className="empty-state">{t("noProjectsLoaded")}</div>
-                  ) : (
-                    <div className="project-list-grid">
-                      {projects.map((p) => {
-                        const uri = p.project_resources.resources[0]?.git_folder.folder_uri || "No folder";
-                        return (
-                          <div className="project-row-card" key={p.id}>
-                            <div className="project-card-info">
-                              <span className="project-card-name">{p.name}</span>
-                              <span className="project-card-path">{decodeURIComponent(uri)}</span>
-                            </div>
-                            <div className="project-card-actions">
-                              <button className="sidebar-btn" style={{ padding: "4px 8px" }} onClick={() => startEditProject(p)}>
-                                <IconEdit />
-                              </button>
-                              <button className="btn-danger-sm" style={{ padding: "4px 8px" }} onClick={() => handleDeleteProject(p.id)}>
-                                <IconTrash />
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="modal-footer">
-              <button className="btn-secondary" onClick={() => {
-                setShowProjectModal(false);
-                setEditingProject(null);
-              }}>
-                {t("closeManager")}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ProjectsModal
+          t={t}
+          projects={projects}
+          editingProject={editingProject}
+          setEditingProject={setEditingProject}
+          isCreatingProject={isCreatingProject}
+          setShowProjectModal={setShowProjectModal}
+          handleSaveProject={handleSaveProject}
+          handleDeleteProject={handleDeleteProject}
+          startEditProject={startEditProject}
+          startCreateProject={startCreateProject}
+        />
       )}
     </div>
   );
