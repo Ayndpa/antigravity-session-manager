@@ -10,7 +10,9 @@
 Antigravity Session Manager is a desktop application built with Tauri, React, and TypeScript, designed to provide a sleek, performant interface for managing Antigravity projects and sessions.
 
 > [!WARNING]
-> **Important Note:** This software is specifically designed for managing Antigravity projects and sessions. It is **NOT** intended or designed to be used for switching user accounts.
+> **Important Note:**
+> 1. This software is specifically designed for managing Antigravity projects and sessions. It is **NOT** intended or designed to be used for switching user accounts.
+> 2. Currently, this application has only been tested and verified on **Windows** and **macOS**.
 
 ### Features
 - **Session & Project Management**: Easily manage, configure, and switch between your Antigravity project directories and sessions.
@@ -94,7 +96,9 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 Antigravity 会话管理器是一个基于 Tauri、React 和 TypeScript 开发的桌面应用程序，旨在为管理 Antigravity 项目和会话提供流畅、高效的用户界面。
 
 > [!WARNING]
-> **重要说明：** 本软件专用于管理 Antigravity 的项目与会话，**并非**用于切换用户账号。请勿将其作为账号切换工具使用。
+> **重要说明：**
+> 1. 本软件专用于管理 Antigravity 的项目与会话，**并非**用于切换用户账号。请勿将其作为账号切换工具使用。
+> 2. 目前，该应用仅在 **Windows** 和 **macOS** 系统上进行了测试并通过验证。
 
 ### 功能特性
 - **会话与项目管理**：便捷地管理、配置和切换 Antigravity 的项目目录和会话。
