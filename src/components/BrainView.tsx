@@ -17,10 +17,14 @@ import "./BrainView.css";
 
 interface BrainViewProps {
   t: (key: TranslationKey, variables?: Record<string, string | number>) => string;
+  showConfirm: (message: string) => Promise<boolean>;
+  showAlert: (message: string) => Promise<void>;
 }
 
 export const BrainView: React.FC<BrainViewProps> = ({
-  t
+  t,
+  showConfirm,
+  showAlert
 }) => {
   const [brains, setBrains] = useState<BrainFolderInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,7 +75,7 @@ export const BrainView: React.FC<BrainViewProps> = ({
 
   const deleteBrainFolder = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (!confirm(t("confirmDeleteBrainFolder"))) return;
+    if (!(await showConfirm(t("confirmDeleteBrainFolder")))) return;
     try {
       await invoke("delete_brain", { id });
       await loadBrains();
@@ -80,19 +84,19 @@ export const BrainView: React.FC<BrainViewProps> = ({
         setBrainFiles([]);
       }
     } catch (e) {
-      alert("Failed to delete brain folder: " + e);
+      await showAlert("Failed to delete brain folder: " + e);
     }
   };
 
   const cleanOrphanedBrains = async () => {
-    if (!confirm(t("cleanOrphanedConfirm"))) return;
+    if (!(await showConfirm(t("cleanOrphanedConfirm")))) return;
     setLoading(true);
     try {
       await invoke("clean_orphaned_brains");
-      alert(t("cleanOrphanedSuccess"));
+      await showAlert(t("cleanOrphanedSuccess"));
       await loadBrains();
     } catch (e) {
-      alert("Failed to clean orphaned brains: " + e);
+      await showAlert("Failed to clean orphaned brains: " + e);
     } finally {
       setLoading(false);
     }
@@ -107,7 +111,7 @@ export const BrainView: React.FC<BrainViewProps> = ({
       setBrainFiles(files);
     } catch (e) {
       console.error("Failed to fetch brain files:", e);
-      alert("Failed to fetch files: " + e);
+      await showAlert("Failed to fetch files: " + e);
     } finally {
       setLoadingFiles(false);
     }
@@ -148,7 +152,7 @@ export const BrainView: React.FC<BrainViewProps> = ({
       setFileContent(content);
     } catch (e) {
       console.error("Failed to read file content:", e);
-      alert("Failed to read file: " + e);
+      await showAlert("Failed to read file: " + e);
       setEditingFile(null);
     } finally {
       setLoadingContent(false);
@@ -163,12 +167,12 @@ export const BrainView: React.FC<BrainViewProps> = ({
         path: editingFile.absolute_path,
         content: fileContent
       });
-      alert(t("saveSuccess"));
+      await showAlert(t("saveSuccess"));
       setEditMode(false);
       // Reload file info
       refreshFiles();
     } catch (e) {
-      alert("Failed to save file: " + e);
+      await showAlert("Failed to save file: " + e);
     } finally {
       setSavingFile(false);
     }
@@ -176,7 +180,7 @@ export const BrainView: React.FC<BrainViewProps> = ({
 
   const deleteFile = async (e: React.MouseEvent, file: BrainFileInfo) => {
     e.stopPropagation();
-    if (!confirm(t("deleteFileConfirm", { name: file.name }))) return;
+    if (!(await showConfirm(t("deleteFileConfirm", { name: file.name })))) return;
     try {
       await invoke("delete_brain_file", { path: file.absolute_path });
       if (editingFile?.absolute_path === file.absolute_path) {
@@ -184,7 +188,7 @@ export const BrainView: React.FC<BrainViewProps> = ({
       }
       refreshFiles();
     } catch (e) {
-      alert("Failed to delete file: " + e);
+      await showAlert("Failed to delete file: " + e);
     }
   };
 
@@ -202,7 +206,7 @@ export const BrainView: React.FC<BrainViewProps> = ({
       setNewFileName("");
       refreshFiles();
     } catch (e) {
-      alert("Failed to create file: " + e);
+      await showAlert("Failed to create file: " + e);
     } finally {
       setCreatingFile(false);
     }

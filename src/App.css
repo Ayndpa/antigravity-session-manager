@@ -191,3 +191,69 @@ body {
   font-size: 32px;
   color: var(--border-color-glow);
 }
+
+/* Custom Confirmation & Alert Dialog Overlay */
+.custom-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(6, 8, 19, 0.75);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: dialogFadeIn 0.2s ease-out;
+}
+
+.custom-dialog-panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 440px;
+  box-shadow: var(--shadow-neon), 0 10px 30px rgba(0, 0, 0, 0.6);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: dialogScaleIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.custom-dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-glow);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 10px;
+}
+
+.custom-dialog-body {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-main);
+  word-break: break-word;
+}
+
+.custom-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+@keyframes dialogFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes dialogScaleIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+

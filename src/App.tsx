@@ -83,6 +83,36 @@ function App() {
   const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Dialog State
+  const [dialogState, setDialogState] = useState<{
+    isOpen: boolean;
+    type: "confirm" | "alert";
+    message: string;
+    resolve: (val: boolean) => void;
+  } | null>(null);
+
+  const showConfirm = (message: string): Promise<boolean> => {
+    return new Promise((resolve) => {
+      setDialogState({
+        isOpen: true,
+        type: "confirm",
+        message,
+        resolve,
+      });
+    });
+  };
+
+  const showAlert = (message: string): Promise<void> => {
+    return new Promise((resolve) => {
+      setDialogState({
+        isOpen: true,
+        type: "alert",
+        message,
+        resolve: () => resolve(),
+      });
+    });
+  };
+
   // Fetch initial data
   useEffect(() => {
     loadData();
@@ -156,7 +186,7 @@ function App() {
       setSelectedConvDetail(detail);
     } catch (e) {
       console.error("Failed to fetch conversation details:", e);
-      alert(t("errorLoadingConversation") + e);
+      await showAlert(t("errorLoadingConversation") + e);
     } finally {
       setLoadingDetail(false);
     }
@@ -164,7 +194,7 @@ function App() {
 
   // Delete single conversation
   const deleteConversation = async (id: string) => {
-    if (!confirm(t("confirmDeleteConversation"))) return;
+    if (!(await showConfirm(t("confirmDeleteConversation")))) return;
     try {
       await invoke("delete_conversation", { id });
       if (selectedConvId === id) {
@@ -178,7 +208,7 @@ function App() {
       });
       await loadData();
     } catch (e) {
-      alert(t("failedDeleteConversation") + e);
+      await showAlert(t("failedDeleteConversation") + e);
     }
   };
 
@@ -186,7 +216,7 @@ function App() {
   const deleteConversationsBatch = async () => {
     const count = batchSelectedIds.size;
     if (count === 0) return;
-    if (!confirm(t("confirmDeleteConversationsBatch", { count }))) return;
+    if (!(await showConfirm(t("confirmDeleteConversationsBatch", { count })))) return;
 
     try {
       setLoading(true);
@@ -198,7 +228,7 @@ function App() {
       setSelectedConvDetail(null);
       await loadData();
     } catch (e) {
-      alert(t("failedBatchDelete") + e);
+      await showAlert(t("failedBatchDelete") + e);
       setLoading(false);
     }
   };
@@ -244,18 +274,18 @@ function App() {
       setEditingProject(null);
       await loadData();
     } catch (e) {
-      alert(t("failedSaveProject") + e);
+      await showAlert(t("failedSaveProject") + e);
     }
   };
 
   // Delete Project
   const handleDeleteProject = async (id: string) => {
-    if (!confirm(t("confirmDeleteProject"))) return;
+    if (!(await showConfirm(t("confirmDeleteProject")))) return;
     try {
       await invoke("delete_project", { id });
       await loadData();
     } catch (e) {
-      alert(t("failedDeleteProject") + e);
+      await showAlert(t("failedDeleteProject") + e);
     }
   };
 
@@ -263,12 +293,12 @@ function App() {
   const handleDeleteProjectsBatch = async (ids: string[]) => {
     const count = ids.length;
     if (count === 0) return;
-    if (!confirm(t("confirmDeleteProjectsBatch", { count }))) return;
+    if (!(await showConfirm(t("confirmDeleteProjectsBatch", { count })))) return;
     try {
       await invoke("delete_projects_batch", { ids });
       await loadData();
     } catch (e) {
-      alert(t("failedDeleteProjectsBatch") + e);
+      await showAlert(t("failedDeleteProjectsBatch") + e);
     }
   };
 
@@ -366,6 +396,8 @@ function App() {
           /* ================= BRAIN SPACE MANAGEMENT VIEW ================= */
           <BrainView
             t={t}
+            showConfirm={showConfirm}
+            showAlert={showAlert}
           />
         ) : showAuditView ? (
           /* ================= AUDIT STATISTICS VIEW ================= */
@@ -428,6 +460,66 @@ function App() {
           />
         )}
       </main>
+
+      {dialogState && dialogState.isOpen && (
+        <div className="custom-dialog-overlay" onClick={() => {
+          if (dialogState.type === "alert") {
+            dialogState.resolve(true);
+            setDialogState(null);
+          }
+        }}>
+          <div className="custom-dialog-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="custom-dialog-header">
+              <span style={{ fontSize: "18px" }}>
+                {dialogState.type === "confirm" ? "❓" : "ℹ️"}
+              </span>
+              <span>
+                {dialogState.type === "confirm" 
+                  ? (lang === "zh" ? "确认操作" : "Confirm Action") 
+                  : (lang === "zh" ? "提示" : "Notice")}
+              </span>
+            </div>
+            <div className="custom-dialog-body">
+              {dialogState.message}
+            </div>
+            <div className="custom-dialog-footer">
+              {dialogState.type === "confirm" ? (
+                <>
+                  <button
+                    className="btn-secondary"
+                    onClick={() => {
+                      dialogState.resolve(false);
+                      setDialogState(null);
+                    }}
+                  >
+                    {t("cancel")}
+                  </button>
+                  <button
+                    className="btn-primary"
+                    style={{ background: "linear-gradient(135deg, rgba(255, 0, 127, 0.2) 0%, rgba(155, 81, 224, 0.2) 100%)", borderColor: "var(--neon-pink)" }}
+                    onClick={() => {
+                      dialogState.resolve(true);
+                      setDialogState(null);
+                    }}
+                  >
+                    {t("confirm")}
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="btn-primary"
+                  onClick={() => {
+                    dialogState.resolve(true);
+                    setDialogState(null);
+                  }}
+                >
+                  {t("confirm")}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
