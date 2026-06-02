@@ -333,11 +333,7 @@ pub fn get_conversation_detail(id: String) -> Result<ConversationDetail, String>
     })
 }
 
-#[tauri::command]
-pub fn delete_conversation(id: String) -> Result<(), String> {
-    let conv_dir = get_conversations_dir()?;
-    let brain_dir = get_brain_dir()?;
-
+fn delete_conversation_files_and_cache(id: &str, conv_dir: &Path, brain_dir: &Path) -> Result<(), String> {
     // Remove DB files
     let db_files = vec![
         conv_dir.join(format!("{}.db", id)),
@@ -353,9 +349,41 @@ pub fn delete_conversation(id: String) -> Result<(), String> {
     }
 
     // Remove brain directories
-    let session_brain_dir = brain_dir.join(&id);
+    let session_brain_dir = brain_dir.join(id);
     if session_brain_dir.exists() {
         fs::remove_dir_all(session_brain_dir).map_err(|e| e.to_string())?;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        // Perform fine-grained modification of the summaries cache
+        if let Some(antigravity_dir) = conv_dir.parent() {
+            let summary_cache = antigravity_dir.join("agyhub_summaries_proto.pb");
+            let _ = remove_conversation_from_proto(&summary_cache, id);
+        }
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_conversation(id: String) -> Result<(), String> {
+    let conv_dir = get_conversations_dir()?;
+    let brain_dir = get_brain_dir()?;
+
+    #[cfg(target_os = "macos")]
+    let killed_paths = {
+        check_and_close_antigravity().unwrap_or_default()
+    };
+
+    delete_conversation_files_and_cache(&id, &conv_dir, &brain_dir)?;
+
+    #[cfg(target_os = "macos")]
+    {
+        // Relaunch Antigravity if it was previously running
+        if !killed_paths.is_empty() {
+            relaunch_antigravity(&killed_paths);
+        }
     }
 
     Ok(())
@@ -363,8 +391,192 @@ pub fn delete_conversation(id: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn delete_conversations_batch(ids: Vec<String>) -> Result<(), String> {
-    for id in ids {
-        let _ = delete_conversation(id);
+    let conv_dir = get_conversations_dir()?;
+    let brain_dir = get_brain_dir()?;
+
+    #[cfg(target_os = "macos")]
+    let killed_paths = {
+        check_and_close_antigravity().unwrap_or_default()
+    };
+
+    for id in &ids {
+        let _ = delete_conversation_files_and_cache(id, &conv_dir, &brain_dir);
     }
+
+    #[cfg(target_os = "macos")]
+    {
+        // Relaunch Antigravity if it was previously running
+        if !killed_paths.is_empty() {
+            relaunch_antigravity(&killed_paths);
+        }
+    }
+
     Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn parse_varint(data: &[u8], pos: &mut usize) -> Result<u64, String> {
+    let mut val: u64 = 0;
+    let mut shift = 0;
+    loop {
+        if *pos >= data.len() {
+            return Err("Unexpected end of data while parsing varint".to_string());
+        }
+        let b = data[*pos];
+        *pos += 1;
+        val |= ((b & 0x7F) as u64) << shift;
+        if (b & 0x80) == 0 {
+            break;
+        }
+        shift += 7;
+        if shift >= 64 {
+            return Err("Varint too long".to_string());
+        }
+    }
+    Ok(val)
+}
+
+#[cfg(target_os = "macos")]
+fn remove_conversation_from_proto(filepath: &Path, target_uuid: &str) -> Result<(), String> {
+    if !filepath.exists() {
+        return Ok(());
+    }
+    let data = fs::read(filepath).map_err(|e| e.to_string())?;
+    let mut pos = 0;
+    let end = data.len();
+    let mut new_data = Vec::with_capacity(data.len());
+
+    while pos < end {
+        let field_start = pos;
+        let tag = parse_varint(&data, &mut pos)?;
+        let field_num = tag >> 3;
+        let wire_type = tag & 0x07;
+
+        match wire_type {
+            0 => { // Varint
+                let _ = parse_varint(&data, &mut pos)?;
+                new_data.extend_from_slice(&data[field_start..pos]);
+            }
+            1 => { // 64-bit
+                pos += 8;
+                if pos > end {
+                    return Err("Unexpected end of data in 64-bit field".to_string());
+                }
+                new_data.extend_from_slice(&data[field_start..pos]);
+            }
+            2 => { // Length-delimited
+                let length = parse_varint(&data, &mut pos)? as usize;
+                let payload_start = pos;
+                pos += length;
+                if pos > end {
+                    return Err("Unexpected end of data in length-delimited field".to_string());
+                }
+
+                let mut skip = false;
+                if field_num == 1 {
+                    // Check if inner first field is field_num=1, wire_type=2 and matches target_uuid
+                    let payload = &data[payload_start..pos];
+                    let mut inner_pos = 0;
+                    if let Ok(inner_tag) = parse_varint(payload, &mut inner_pos) {
+                        let inner_field_num = inner_tag >> 3;
+                        let inner_wire_type = inner_tag & 0x07;
+                        if inner_field_num == 1 && inner_wire_type == 2 {
+                            if let Ok(inner_len_val) = parse_varint(payload, &mut inner_pos) {
+                                let inner_len = inner_len_val as usize;
+                                if inner_pos + inner_len <= payload.len() {
+                                    if let Ok(uuid_str) = std::str::from_utf8(&payload[inner_pos..inner_pos+inner_len]) {
+                                        if uuid_str == target_uuid {
+                                            skip = true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if !skip {
+                    new_data.extend_from_slice(&data[field_start..pos]);
+                }
+            }
+            5 => { // 32-bit
+                pos += 4;
+                if pos > end {
+                    return Err("Unexpected end of data in 32-bit field".to_string());
+                }
+                new_data.extend_from_slice(&data[field_start..pos]);
+            }
+            _ => {
+                return Err(format!("Unknown wire type {} at pos {}", wire_type, field_start));
+            }
+        }
+    }
+
+    fs::write(filepath, new_data).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn check_and_close_antigravity() -> Result<Vec<String>, String> {
+    let output = std::process::Command::new("ps")
+        .args(["-A", "-o", "pid,comm"])
+        .output()
+        .map_err(|e| format!("Failed to execute ps command: {}", e))?;
+
+    if !output.status.success() {
+        return Err("ps command failed".to_string());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut pids_to_kill = Vec::new();
+    let mut killed_paths = Vec::new();
+
+    for line in stdout.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let mut parts = line.split_whitespace();
+        if let Some(pid_str) = parts.next() {
+            let cmd_path = parts.collect::<Vec<&str>>().join(" ");
+            if cmd_path.is_empty() {
+                continue;
+            }
+            if let Some(filename) = Path::new(&cmd_path).file_name().and_then(|n| n.to_str()) {
+                let filename_lower = filename.to_lowercase();
+                if filename_lower == "antigravity" {
+                    if let Ok(pid) = pid_str.parse::<i32>() {
+                        pids_to_kill.push(pid);
+                        killed_paths.push(cmd_path);
+                    }
+                }
+            }
+        }
+    }
+
+    if !pids_to_kill.is_empty() {
+        for pid in pids_to_kill {
+            let _ = std::process::Command::new("kill")
+                .arg(pid.to_string())
+                .status();
+        }
+        std::thread::sleep(std::time::Duration::from_millis(500));
+    }
+
+    Ok(killed_paths)
+}
+
+#[cfg(target_os = "macos")]
+fn relaunch_antigravity(paths: &[String]) {
+    for path in paths {
+        if let Some(app_idx) = path.find(".app") {
+            let app_path = &path[..app_idx + 4];
+            let _ = std::process::Command::new("open")
+                .arg(app_path)
+                .spawn();
+        } else {
+            let _ = std::process::Command::new(path)
+                .spawn();
+        }
+    }
 }
