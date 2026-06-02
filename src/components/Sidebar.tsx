@@ -6,6 +6,7 @@ import {
   IconFolder,
   IconChart,
   IconChevronLeft,
+  IconBrain
 } from "./Icons";
 import "./Sidebar.css";
 
@@ -34,6 +35,8 @@ interface SidebarProps {
   setShowProjectsView: (val: boolean) => void;
   showAuditView: boolean;
   setShowAuditView: (val: boolean) => void;
+  showBrainView: boolean;
+  setShowBrainView: (val: boolean) => void;
   deleteConversationsBatch: () => void;
 }
 
@@ -61,6 +64,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setShowProjectsView,
   showAuditView,
   setShowAuditView,
+  showBrainView,
+  setShowBrainView,
   deleteConversationsBatch,
 }) => {
   const lastClickedConvIdRef = useRef<string | null>(null);
@@ -201,10 +206,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
               setShowProjectsView(next);
               if (next) {
                 setShowAuditView(false);
+                setShowBrainView(false);
               }
             }}
           >
             <IconFolder /> {t("projects")}
+          </button>
+          <button
+            className={`sidebar-btn ${showBrainView ? "active" : ""}`}
+            onClick={() => {
+              const next = !showBrainView;
+              setShowBrainView(next);
+              if (next) {
+                setShowProjectsView(false);
+                setShowAuditView(false);
+              }
+            }}
+          >
+            <IconBrain /> {t("brainManager")}
           </button>
           <button
             className={`sidebar-btn ${showAuditView ? "active" : ""}`}
@@ -213,6 +232,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               setShowAuditView(next);
               if (next) {
                 setShowProjectsView(false);
+                setShowBrainView(false);
               }
             }}
           >

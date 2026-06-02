@@ -17,3 +17,11 @@ pub fn get_conversations_dir() -> Result<PathBuf, String> {
 pub fn get_brain_dir() -> Result<PathBuf, String> {
     Ok(get_gemini_dir()?.join("antigravity").join("brain"))
 }
+
+pub fn get_browser_recordings_dir() -> Result<PathBuf, String> {
+    Ok(get_gemini_dir()?.join("antigravity").join("browser_recordings"))
+}
+
+pub fn get_html_artifacts_dir() -> Result<PathBuf, String> {
+    Ok(get_gemini_dir()?.join("antigravity").join("html_artifacts"))
+}

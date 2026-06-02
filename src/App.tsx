@@ -16,6 +16,7 @@ import { WelcomePanel } from "./components/WelcomePanel";
 import { AuditView } from "./components/AuditView";
 import { DetailView } from "./components/DetailView";
 import { ProjectsView } from "./components/ProjectsView";
+import { BrainView } from "./components/BrainView";
 
 function App() {
   // Collapsible sidebar state
@@ -74,6 +75,7 @@ function App() {
   // Views & Modals
   const [showProjectsView, setShowProjectsView] = useState(false);
   const [showAuditView, setShowAuditView] = useState(false);
+  const [showBrainView, setShowBrainView] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
 
@@ -145,6 +147,7 @@ function App() {
     // Auto switch back to conversation view by closing special dashboard views
     setShowAuditView(false);
     setShowProjectsView(false);
+    setShowBrainView(false);
 
     try {
       const detail = await invoke<ConversationDetail>("get_conversation_detail", {
@@ -205,6 +208,7 @@ function App() {
     setShowProjectsView(val);
     if (val) {
       setShowAuditView(false);
+      setShowBrainView(false);
       setSelectedConvId(null);
       setSelectedConvDetail(null);
     }
@@ -214,6 +218,17 @@ function App() {
     setShowAuditView(val);
     if (val) {
       setShowProjectsView(false);
+      setShowBrainView(false);
+      setSelectedConvId(null);
+      setSelectedConvDetail(null);
+    }
+  };
+
+  const handleSetShowBrainView = (val: boolean) => {
+    setShowBrainView(val);
+    if (val) {
+      setShowProjectsView(false);
+      setShowAuditView(false);
       setSelectedConvId(null);
       setSelectedConvDetail(null);
     }
@@ -340,12 +355,19 @@ function App() {
         setShowProjectsView={handleSetShowProjectsView}
         showAuditView={showAuditView}
         setShowAuditView={handleSetShowAuditView}
+        showBrainView={showBrainView}
+        setShowBrainView={handleSetShowBrainView}
         deleteConversationsBatch={deleteConversationsBatch}
       />
 
       {/* 2. MAIN WORKSPACE CONTENT */}
       <main className="main-content">
-        {showAuditView ? (
+        {showBrainView ? (
+          /* ================= BRAIN SPACE MANAGEMENT VIEW ================= */
+          <BrainView
+            t={t}
+          />
+        ) : showAuditView ? (
           /* ================= AUDIT STATISTICS VIEW ================= */
           <AuditView
             sidebarCollapsed={sidebarCollapsed}

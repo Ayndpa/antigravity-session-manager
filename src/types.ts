@@ -50,3 +50,21 @@ export interface AuditStats {
   errors_by_tool: Record<string, number>;
   average_steps_per_conversation: number;
 }
+
+export interface BrainFolderInfo {
+  id: string;
+  title: string;
+  file_count: number;
+  total_size_bytes: number;
+  has_conversation_db: boolean;
+  last_modified: string;
+}
+
+export interface BrainFileInfo {
+  name: string;
+  relative_path: string;
+  absolute_path: string;
+  size_bytes: number;
+  last_modified: string;
+  file_type: "log" | "scratch" | "artifact" | "recording" | "html_artifact" | "other";
+}
